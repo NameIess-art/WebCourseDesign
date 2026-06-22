@@ -351,6 +351,11 @@ button:disabled {
   margin-top: 18px;
 }
 
+.action-form,
+.seckill-list {
+  margin-bottom: 18px;
+}
+
 .stat-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }

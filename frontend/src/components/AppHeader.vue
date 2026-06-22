@@ -1,6 +1,6 @@
 <template>
   <header class="topbar">
-    <div class="brand" @click="$router.push('/')">悦选商城</div>
+    <div class="brand" @click="$router.push('/')">商城</div>
     <nav class="nav-links">
       <button class="nav-link" @click="$router.push('/')">首页</button>
       <button class="nav-link" @click="$router.push('/cart')">购物车</button>

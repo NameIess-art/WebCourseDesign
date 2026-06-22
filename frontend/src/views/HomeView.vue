@@ -1,7 +1,7 @@
 <template>
   <section class="hero">
     <div>
-      <p class="eyebrow">Spring Boot + Vue 在线商城</p>
+      <p class="eyebrow">Spring Boot + Vue 商城</p>
       <h1>发现好物，轻松下单。</h1>
       <p class="hero-copy">从商品浏览、购物车到订单履约，一站式完成完整购物流程。</p>
     </div>
