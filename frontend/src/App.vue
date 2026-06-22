@@ -1,13 +1,10 @@
 <template>
-  <div class="app-shell">
-    <AppHeader />
-    <main class="page-shell">
-      <RouterView />
-    </main>
-  </div>
+  <AppLayout>
+    <RouterView />
+  </AppLayout>
 </template>
 
 <script setup>
 import { RouterView } from 'vue-router'
-import AppHeader from './components/AppHeader.vue'
+import AppLayout from './components/AppLayout.vue'
 </script>

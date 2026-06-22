@@ -3,10 +3,14 @@
     <section class="section-card">
       <div class="section-head">
         <h1>我的订单</h1>
-        <button class="ghost-button" @click="loadOrders">刷新</button>
+        <button class="ghost-button" :disabled="loading" @click="loadOrders(pageInfo.page)">刷新</button>
       </div>
 
-      <div v-if="orders.length" class="stack-list">
+      <div v-if="loading" class="notice-box">
+        <strong>正在加载订单</strong>
+        <span class="muted">支付、物流和售后状态正在同步。</span>
+      </div>
+      <div v-else-if="orders.length" class="stack-list">
         <article v-for="order in orders" :key="order.id" class="order-card">
           <div class="section-head">
             <div>
@@ -17,7 +21,7 @@
           </div>
           <div class="stack-list small-gap">
             <div v-for="item in order.items" :key="item.id" class="inline-meta">
-              <span>{{ item.productName }}</span>
+              <span>{{ item.productName }} · {{ item.skuName || '默认规格' }}</span>
               <span>{{ item.quantity }} x ¥{{ item.price }}</span>
             </div>
           </div>
@@ -25,7 +29,7 @@
             <span>原价 ¥{{ order.originalAmount }}</span>
             <span>优惠 -¥{{ order.discountAmount }}，积分 -¥{{ order.pointsDiscountAmount }}</span>
             <strong>实付 ¥{{ order.totalAmount }}</strong>
-            <span v-if="order.paymentChannel">支付渠道：{{ order.paymentChannel }}</span>
+            <span v-if="order.paymentChannel">支付渠道：{{ channelText[order.paymentChannel] || order.paymentChannel }}</span>
           </div>
           <div class="order-footer">
             <div class="row-actions" v-if="order.status === 'PENDING_PAYMENT'">
@@ -46,7 +50,12 @@
           </div>
         </article>
       </div>
-      <p v-else>暂无订单。</p>
+      <p v-else class="muted">暂无订单。</p>
+      <div class="pager">
+        <button class="ghost-button" :disabled="pageInfo.first || loading" @click="loadOrders(pageInfo.page - 1)">上一页</button>
+        <span>第 {{ pageInfo.page + 1 }} / {{ Math.max(pageInfo.totalPages, 1) }} 页</span>
+        <button class="ghost-button" :disabled="pageInfo.last || loading" @click="loadOrders(pageInfo.page + 1)">下一页</button>
+      </div>
     </section>
 
     <section class="section-card">
@@ -54,17 +63,18 @@
       <div class="stack-list">
         <article v-for="record in afterSales" :key="record.id" class="row-card">
           <div class="row-main">
-            <strong>{{ record.orderNo }} · {{ record.type }}</strong>
+            <strong>{{ record.orderNo }} · {{ saleTypeText[record.type] || record.type }}</strong>
             <span>{{ record.reason }} · {{ record.status }}</span>
           </div>
         </article>
+        <p v-if="!afterSales.length" class="muted">暂无售后记录。</p>
       </div>
     </section>
   </section>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import {
   cancelOrder,
   createPayment,
@@ -79,6 +89,8 @@ import {
 const orders = ref([])
 const afterSales = ref([])
 const logistics = ref({})
+const loading = ref(false)
+const pageInfo = reactive({ page: 0, size: 10, totalPages: 0, first: true, last: true })
 const statusText = {
   PENDING_PAYMENT: '待支付',
   PAID: '待发货',
@@ -86,13 +98,28 @@ const statusText = {
   COMPLETED: '已完成',
   CANCELLED: '已取消'
 }
+const channelText = { ALIPAY: '支付宝', WECHAT: '微信', BANK: '银行卡', BALANCE: '余额' }
+const saleTypeText = { REFUND: '退款', RETURN: '退货', EXCHANGE: '换货', REFUND_RETURN: '退款退货' }
 
 const formatDate = (value) => new Date(value).toLocaleString('zh-CN')
 
-async function loadOrders() {
-  const [orderRes, afterSaleRes] = await Promise.all([getOrders(), getAfterSales()])
-  orders.value = orderRes.data
-  afterSales.value = afterSaleRes.data
+async function loadOrders(page = 0) {
+  loading.value = true
+  try {
+    const [orderRes, afterSaleRes] = await Promise.all([getOrders(page, pageInfo.size), getAfterSales()])
+    const data = orderRes.data
+    orders.value = data.content || []
+    afterSales.value = afterSaleRes.data
+    Object.assign(pageInfo, {
+      page: data.page ?? 0,
+      size: data.size ?? pageInfo.size,
+      totalPages: data.totalPages ?? 1,
+      first: data.first ?? true,
+      last: data.last ?? true
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function pay(id, channel) {
@@ -106,7 +133,7 @@ async function pay(id, channel) {
       paymentNo: payment.data.paymentNo,
       channelTradeNo: `${channel}-${Date.now()}`
     })
-    await loadOrders()
+    await loadOrders(pageInfo.page)
   } catch (error) {
     window.alert(error)
   }
@@ -115,12 +142,12 @@ async function pay(id, channel) {
 async function cancel(id) {
   if (!window.confirm('确定取消该订单吗？')) return
   await cancelOrder(id)
-  await loadOrders()
+  await loadOrders(pageInfo.page)
 }
 
 async function receive(id) {
   await receiveOrder(id)
-  await loadOrders()
+  await loadOrders(pageInfo.page)
 }
 
 async function showLogistics(id) {
@@ -129,11 +156,11 @@ async function showLogistics(id) {
 }
 
 async function afterSale(id) {
-  const reason = window.prompt('请输入售后原因', '商品不符合预期，申请退款/退货')
+  const reason = window.prompt('请输入售后原因', '商品不符合预期，申请退款退货')
   if (!reason) return
   await requestAfterSale(id, { type: 'REFUND_RETURN', reason })
-  await loadOrders()
+  await loadOrders(pageInfo.page)
 }
 
-onMounted(loadOrders)
+onMounted(() => loadOrders(0))
 </script>

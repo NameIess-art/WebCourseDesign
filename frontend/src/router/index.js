@@ -5,8 +5,10 @@ import RegisterView from '../views/RegisterView.vue'
 import ProductView from '../views/ProductView.vue'
 import CartView from '../views/CartView.vue'
 import OrdersView from '../views/OrdersView.vue'
-import AdminView from '../views/AdminView.vue'
+import MerchantView from '../views/MerchantView.vue'
+import PlatformView from '../views/PlatformView.vue'
 import FeatureCenterView from '../views/FeatureCenterView.vue'
+import ActivitiesView from '../views/ActivitiesView.vue'
 import { getToken, getUser } from '../utils/auth'
 
 const routes = [
@@ -17,12 +19,29 @@ const routes = [
   { path: '/cart', component: CartView, meta: { auth: true } },
   { path: '/orders', component: OrdersView, meta: { auth: true } },
   { path: '/features', component: FeatureCenterView, meta: { auth: true } },
-  { path: '/admin', component: AdminView, meta: { auth: true, admin: true } }
+  { path: '/activities', component: ActivitiesView },
+  { path: '/merchant', component: MerchantView, meta: { auth: true, merchant: true } },
+  { path: '/platform', component: PlatformView, meta: { auth: true, platform: true } },
+  {
+    path: '/admin',
+    redirect: () => {
+      const user = getUser()
+      if (user?.role === 'ADMIN') return '/platform'
+      if (user?.role === 'MERCHANT') return '/merchant'
+      return '/'
+    }
+  }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  scrollBehavior(to) {
+    if (to.hash) {
+      return { el: to.hash, top: 90, behavior: 'smooth' }
+    }
+    return { top: 0 }
+  }
 })
 
 router.beforeEach((to) => {
@@ -31,7 +50,10 @@ router.beforeEach((to) => {
   if (to.meta.auth && !token) {
     return '/login'
   }
-  if (to.meta.admin && !['ADMIN', 'MERCHANT'].includes(user?.role)) {
+  if (to.meta.merchant && !['ADMIN', 'MERCHANT'].includes(user?.role)) {
+    return '/'
+  }
+  if (to.meta.platform && user?.role !== 'ADMIN') {
     return '/'
   }
   return true

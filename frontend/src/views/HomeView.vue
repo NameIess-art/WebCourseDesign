@@ -1,13 +1,16 @@
 <template>
   <section class="hero">
     <div>
-      <p class="eyebrow">商城</p>
+      <p class="eyebrow">MallSystem</p>
       <h1>高并发电商演示系统</h1>
-      <p class="hero-copy">覆盖导购、搜索、购物车、优惠结算、模拟支付、会员消息和后台运营。</p>
+      <p class="hero-copy">覆盖首页推荐、分类导航、搜索联想、商品详情、收藏加购、优惠结算、支付履约和后台运营。</p>
     </div>
     <div class="search-panel">
-      <input v-model="keyword" placeholder="搜索商品名称或分类" @input="loadSuggest" @keyup.enter="loadProducts" />
-      <button class="accent-button" @click="loadProducts">搜索</button>
+      <label>
+        <span>搜索商品或分类</span>
+        <input v-model="keyword" placeholder="输入商品名称、促销标签或分类" @input="loadSuggest" @keyup.enter="search" />
+      </label>
+      <button class="accent-button" :disabled="loading" @click="search">搜索</button>
       <div v-if="suggestions.productNames.length || suggestions.categories.length" class="tag-list">
         <button v-for="item in suggestions.productNames" :key="`p-${item}`" class="tag-chip" @click="useKeyword(item)">
           {{ item }}
@@ -19,15 +22,20 @@
     </div>
   </section>
 
-  <section class="section-card">
+  <section id="categories" class="section-card">
     <div class="section-head">
       <h2>商品分类</h2>
       <span>共 {{ categories.length }} 个分类</span>
     </div>
     <div class="tag-list">
       <button class="tag-chip" :class="{ active: !categoryId }" @click="selectCategory(null)">全部</button>
-      <button v-for="category in categories" :key="category.id" class="tag-chip"
-              :class="{ active: categoryId === category.id }" @click="selectCategory(category.id)">
+      <button
+        v-for="category in categories"
+        :key="category.id"
+        class="tag-chip"
+        :class="{ active: categoryId === category.id }"
+        @click="selectCategory(category.id)"
+      >
         {{ category.name }}
       </button>
     </div>
@@ -47,13 +55,17 @@
   <section class="section-card">
     <div class="section-head">
       <h2>精选商品</h2>
-      <span>{{ products.length }} 件商品</span>
+      <span>{{ pageInfo.totalElements }} 件商品</span>
     </div>
-    <div v-if="products.length" class="product-grid">
+    <div v-if="loading" class="notice-box">
+      <strong>正在加载商品</strong>
+      <span class="muted">请稍候，正在同步最新库存与活动信息。</span>
+    </div>
+    <div v-else-if="products.length" class="product-grid">
       <article v-for="product in products" :key="product.id" class="product-card">
-        <img :src="product.imageUrl" :alt="product.name" />
+        <img :src="product.imageUrl" :alt="product.name" loading="lazy" />
         <div class="product-body">
-          <span class="product-category">{{ product.categoryName }} · {{ product.promotionTag }}</span>
+          <span class="product-category">{{ product.categoryName }} · {{ product.promotionTag || '日常精选' }}</span>
           <h3>{{ product.name }}</h3>
           <p>{{ product.subtitle }}</p>
           <div class="product-meta">
@@ -62,19 +74,24 @@
           </div>
           <div class="product-actions">
             <button class="ghost-button" @click="openProduct(product.id)">详情</button>
-            <button class="accent-button" :disabled="product.stock === 0" @click="quickAdd(product.id)">
+            <button class="accent-button" :disabled="product.stock === 0" @click="quickAdd(product)">
               {{ product.stock === 0 ? '已售罄' : '加购' }}
             </button>
           </div>
         </div>
       </article>
     </div>
-    <p v-else>没有找到符合条件的商品。</p>
+    <p v-else class="muted">没有找到符合条件的商品。</p>
+    <div class="pager">
+      <button class="ghost-button" :disabled="pageInfo.first || loading" @click="changePage(pageInfo.page - 1)">上一页</button>
+      <span>第 {{ pageInfo.page + 1 }} / {{ Math.max(pageInfo.totalPages, 1) }} 页</span>
+      <button class="ghost-button" :disabled="pageInfo.last || loading" @click="changePage(pageInfo.page + 1)">下一页</button>
+    </div>
   </section>
 </template>
 
 <script setup>
-import { defineComponent, h, onMounted, ref } from 'vue'
+import { defineComponent, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { addCart, getCategories, getProducts, getRecommendations, suggestSearch } from '../api/mall'
 import { getToken } from '../utils/auth'
@@ -84,8 +101,10 @@ const categories = ref([])
 const products = ref([])
 const keyword = ref('')
 const categoryId = ref(null)
+const loading = ref(false)
 const suggestions = ref({ productNames: [], categories: [] })
 const recommendations = ref({ hot: [], latest: [], activity: [] })
+const pageInfo = reactive({ page: 0, size: 12, totalElements: 0, totalPages: 0, first: true, last: true })
 
 const RecommendationColumn = defineComponent({
   props: { title: String, items: Array },
@@ -94,7 +113,7 @@ const RecommendationColumn = defineComponent({
     return () => h('div', { class: 'stack-list' }, [
       h('h3', props.title),
       ...(props.items || []).map(item => h('article', { class: 'row-card', key: item.id }, [
-        h('img', { class: 'mini-image', src: item.imageUrl, alt: item.name }),
+        h('img', { class: 'mini-image', src: item.imageUrl, alt: item.name, loading: 'lazy' }),
         h('div', { class: 'row-main' }, [
           h('strong', item.name),
           h('span', `¥${item.price} · ${item.promotionTag || item.categoryName}`)
@@ -110,9 +129,23 @@ async function loadCategories() {
   categories.value = res.data
 }
 
-async function loadProducts() {
-  const res = await getProducts(keyword.value, categoryId.value)
-  products.value = res.data
+async function loadProducts(page = pageInfo.page) {
+  loading.value = true
+  try {
+    const res = await getProducts(keyword.value, categoryId.value, page, pageInfo.size)
+    const data = res.data
+    products.value = data.content || []
+    Object.assign(pageInfo, {
+      page: data.page ?? 0,
+      size: data.size ?? pageInfo.size,
+      totalElements: data.totalElements ?? products.value.length,
+      totalPages: data.totalPages ?? 1,
+      first: data.first ?? true,
+      last: data.last ?? true
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadRecommendations() {
@@ -129,28 +162,37 @@ async function loadSuggest() {
   suggestions.value = res.data
 }
 
+async function search() {
+  suggestions.value = { productNames: [], categories: [] }
+  await loadProducts(0)
+}
+
 async function useKeyword(value) {
   keyword.value = value
-  suggestions.value = { productNames: [], categories: [] }
-  await loadProducts()
+  await search()
 }
 
 async function selectCategory(id) {
   categoryId.value = id
-  await loadProducts()
+  await loadProducts(0)
+}
+
+async function changePage(page) {
+  await loadProducts(page)
 }
 
 function openProduct(id) {
   router.push(`/products/${id}`)
 }
 
-async function quickAdd(productId) {
+async function quickAdd(product) {
   if (!getToken()) {
     window.alert('请先登录。')
     return
   }
+  const sku = product.skus?.[0]
   try {
-    await addCart({ productId, quantity: 1 })
+    await addCart({ productId: product.id, skuId: sku?.id ?? null, quantity: 1 })
     window.alert('已加入购物车。')
   } catch (error) {
     window.alert(error)
@@ -158,6 +200,6 @@ async function quickAdd(productId) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadCategories(), loadProducts(), loadRecommendations()])
+  await Promise.all([loadCategories(), loadProducts(0), loadRecommendations()])
 })
 </script>

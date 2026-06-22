@@ -6,6 +6,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -18,7 +19,10 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "payment_records")
+@Table(name = "payment_records", indexes = {
+        @Index(name = "idx_payment_order_created", columnList = "order_id,created_at"),
+        @Index(name = "idx_payment_status_paid", columnList = "status,paid_at")
+})
 public class PaymentRecord {
 
     @Id

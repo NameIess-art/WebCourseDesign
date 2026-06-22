@@ -6,7 +6,7 @@
           <p class="eyebrow">Customer Center</p>
           <h1>会员与服务中心</h1>
         </div>
-        <button class="ghost-button" @click="loadAll">刷新</button>
+        <button class="ghost-button" :disabled="loading" @click="loadAll">刷新</button>
       </div>
       <div v-if="profile" class="stat-grid">
         <div class="stat-card"><span>会员等级</span><strong>{{ profile.level }}</strong></div>
@@ -58,11 +58,11 @@
       </div>
     </section>
 
-    <section class="section-card">
+    <section id="seckill" class="section-card">
       <div class="section-head"><h2>限时秒杀</h2></div>
       <div class="product-grid">
         <article v-for="event in seckillEvents" :key="event.id" class="product-card">
-          <img :src="event.imageUrl" :alt="event.productName" />
+          <img :src="event.imageUrl" :alt="event.productName" loading="lazy" />
           <div class="product-body">
             <span class="product-category">秒杀库存 {{ event.stock }}</span>
             <h3>{{ event.productName }}</h3>
@@ -98,6 +98,7 @@
               <span>{{ record.description }}</span>
             </div>
           </article>
+          <p v-if="!pointRecords.length" class="muted">暂无积分流水。</p>
         </div>
       </div>
       <div class="stack-list">
@@ -107,8 +108,9 @@
             <strong>{{ message.title }}</strong>
             <span>{{ message.content }}</span>
           </div>
-          <button v-if="!message.readFlag" class="ghost-button" @click="markRead(message.id)">已读</button>
+          <button v-if="!message.readFlag" class="ghost-button" @click="markRead(message.id)">标为已读</button>
         </article>
+        <p v-if="!messages.length" class="muted">暂无站内消息。</p>
       </div>
     </section>
   </section>
@@ -132,6 +134,7 @@ import {
   updateAddress
 } from '../api/mall'
 
+const loading = ref(false)
 const profile = ref(null)
 const addresses = ref([])
 const coupons = ref([])
@@ -153,22 +156,27 @@ function resetAddress() {
 }
 
 async function loadAll() {
-  const [profileRes, addressRes, couponRes, favoriteRes, messageRes, seckillRes, pointRes] = await Promise.all([
-    getMemberProfile(),
-    getAddresses(),
-    getCoupons(),
-    getFavorites(),
-    getMemberMessages(),
-    getSeckillEvents(),
-    getPointRecords()
-  ])
-  profile.value = profileRes.data
-  addresses.value = addressRes.data
-  coupons.value = couponRes.data
-  favorites.value = favoriteRes.data
-  messages.value = messageRes.data
-  seckillEvents.value = seckillRes.data
-  pointRecords.value = pointRes.data
+  loading.value = true
+  try {
+    const [profileRes, addressRes, couponRes, favoriteRes, messageRes, seckillRes, pointRes] = await Promise.all([
+      getMemberProfile(),
+      getAddresses(),
+      getCoupons(),
+      getFavorites(),
+      getMemberMessages(),
+      getSeckillEvents(),
+      getPointRecords()
+    ])
+    profile.value = profileRes.data
+    addresses.value = addressRes.data
+    coupons.value = couponRes.data
+    favorites.value = favoriteRes.data
+    messages.value = messageRes.data
+    seckillEvents.value = seckillRes.data
+    pointRecords.value = pointRes.data
+  } finally {
+    loading.value = false
+  }
 }
 
 async function submitAddress() {

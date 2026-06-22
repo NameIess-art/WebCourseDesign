@@ -2,12 +2,13 @@ import http from './http'
 
 export const getDashboard = () => http.get('/admin/dashboard')
 
-export const getAdminProducts = () => http.get('/admin/products')
+export const getAdminProducts = (page = 0, size = 50) => http.get('/admin/products', { params: { page, size } })
 export const createProduct = (payload) => http.post('/admin/products', payload)
 export const updateProduct = (id, payload) => http.put(`/admin/products/${id}`, payload)
 export const deleteProduct = (id) => http.delete(`/admin/products/${id}`)
 
-export const getAdminOrders = () => http.get('/admin/orders')
+export const getAdminOrders = (status, page = 0, size = 50) =>
+  http.get('/admin/orders', { params: { status, page, size } })
 export const shipOrder = (id) => http.patch(`/admin/orders/${id}/ship`)
 export const auditOrder = (id, payload) => http.patch(`/admin/orders/${id}/audit`, payload)
 export const modifyOrder = (id, payload) => http.patch(`/admin/orders/${id}/modify`, payload)

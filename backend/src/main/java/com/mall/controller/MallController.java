@@ -5,10 +5,13 @@ import com.mall.dto.CheckoutRequest;
 import com.mall.dto.UpdateCartItemRequest;
 import com.mall.entity.UserAccount;
 import com.mall.service.MallService;
+import com.mall.service.OperationService;
 import com.mall.vo.ApiResponse;
 import com.mall.vo.CartResponse;
 import com.mall.vo.CategoryResponse;
+import com.mall.vo.MarketingActivityResponse;
 import com.mall.vo.OrderResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.ProductResponse;
 import com.mall.vo.RecommendationResponse;
 import com.mall.vo.SearchSuggestResponse;
@@ -34,6 +37,7 @@ import java.util.List;
 public class MallController {
 
     private final MallService mallService;
+    private final OperationService operationService;
 
     @GetMapping("/categories")
     public ApiResponse<List<CategoryResponse>> categories() {
@@ -41,9 +45,11 @@ public class MallController {
     }
 
     @GetMapping("/products")
-    public ApiResponse<List<ProductResponse>> products(@RequestParam(required = false) String keyword,
-                                                       @RequestParam(required = false) Long categoryId) {
-        return ApiResponse.success(mallService.products(keyword, categoryId));
+    public ApiResponse<PageResponse<ProductResponse>> products(@RequestParam(required = false) String keyword,
+                                                               @RequestParam(required = false) Long categoryId,
+                                                               @RequestParam(defaultValue = "0") int page,
+                                                               @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.success(mallService.products(keyword, categoryId, page, size));
     }
 
     @GetMapping("/products/{id}")
@@ -59,6 +65,11 @@ public class MallController {
     @GetMapping("/recommendations")
     public ApiResponse<RecommendationResponse> recommendations() {
         return ApiResponse.success(mallService.recommendations());
+    }
+
+    @GetMapping("/activities")
+    public ApiResponse<List<MarketingActivityResponse>> activities() {
+        return ApiResponse.success(operationService.publicActivities());
     }
 
     @GetMapping("/cart")
@@ -95,8 +106,10 @@ public class MallController {
     }
 
     @GetMapping("/orders")
-    public ApiResponse<List<OrderResponse>> orders(@AuthenticationPrincipal UserAccount user) {
-        return ApiResponse.success(mallService.orders(user));
+    public ApiResponse<PageResponse<OrderResponse>> orders(@AuthenticationPrincipal UserAccount user,
+                                                           @RequestParam(defaultValue = "0") int page,
+                                                           @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.success(mallService.orders(user, page, size));
     }
 
     @PatchMapping("/orders/{orderId}/pay")

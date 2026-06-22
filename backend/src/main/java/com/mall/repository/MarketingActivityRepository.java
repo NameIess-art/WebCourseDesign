@@ -8,4 +8,6 @@ import java.util.List;
 public interface MarketingActivityRepository extends JpaRepository<MarketingActivity, Long> {
 
     List<MarketingActivity> findAllByOrderByStartAtDesc();
+
+    List<MarketingActivity> findByStatusIgnoreCaseOrderByStartAtDesc(String status);
 }

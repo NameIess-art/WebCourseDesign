@@ -15,6 +15,7 @@ import com.mall.repository.MemberMessageRepository;
 import com.mall.repository.OrderRepository;
 import com.mall.repository.PaymentRecordRepository;
 import com.mall.repository.PointRecordRepository;
+import com.mall.repository.UserRepository;
 import com.mall.vo.PaymentResponse;
 import com.mall.vo.PointRecordResponse;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class PaymentService {
     private final PointRecordRepository pointRecordRepository;
     private final MemberMessageRepository memberMessageRepository;
     private final IdempotentRecordRepository idempotentRecordRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public PaymentResponse createPayment(UserAccount user, PaymentRequest request) {
@@ -91,6 +93,7 @@ public class PaymentService {
         UserAccount user = order.getUser();
         int earned = order.getTotalAmount().intValue();
         user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + earned);
+        userRepository.save(user);
         pointRecordRepository.save(pointRecord(user, earned, "EARN", "Payment success reward"));
         memberMessageRepository.save(message(user, "Payment completed",
                 "Order " + order.getOrderNo() + " paid by " + record.getChannel()

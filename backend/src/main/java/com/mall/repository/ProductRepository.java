@@ -1,6 +1,8 @@
 package com.mall.repository;
 
 import com.mall.entity.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +19,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByActiveTrueAndCategoryIdOrderByIdDesc(Long categoryId);
 
     List<Product> findByActiveTrueAndCategoryIdAndNameContainingIgnoreCaseOrderByIdDesc(Long categoryId, String keyword);
+
+    Page<Product> findByActiveTrueOrderByIdDesc(Pageable pageable);
+
+    Page<Product> findByActiveTrueAndCategoryIdOrderByIdDesc(Long categoryId, Pageable pageable);
+
+    Page<Product> findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(String keyword, Pageable pageable);
+
+    Page<Product> findByActiveTrueAndCategoryIdAndNameContainingIgnoreCaseOrderByIdDesc(
+            Long categoryId, String keyword, Pageable pageable);
+
+    Page<Product> findAllByOrderByIdDesc(Pageable pageable);
+
+    long countByStockLessThanEqual(Integer stock);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

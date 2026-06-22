@@ -4,10 +4,12 @@ export const login = (payload) => http.post('/auth/login', payload)
 export const register = (payload) => http.post('/auth/register', payload)
 
 export const getCategories = () => http.get('/categories')
-export const getProducts = (keyword, categoryId) => http.get('/products', { params: { keyword, categoryId } })
+export const getProducts = (keyword, categoryId, page = 0, size = 20) =>
+  http.get('/products', { params: { keyword, categoryId, page, size } })
 export const getProduct = (id) => http.get(`/products/${id}`)
 export const suggestSearch = (keyword) => http.get('/search/suggest', { params: { keyword } })
 export const getRecommendations = () => http.get('/recommendations')
+export const getActivities = () => http.get('/activities')
 
 export const getCart = () => http.get('/cart')
 export const addCart = (payload) => http.post('/cart', payload)
@@ -15,7 +17,7 @@ export const updateCart = (id, quantity) => http.put(`/cart/${id}`, { quantity }
 export const removeCart = (id) => http.delete(`/cart/${id}`)
 export const checkout = (payload) => http.post('/orders/checkout', payload)
 
-export const getOrders = () => http.get('/orders')
+export const getOrders = (page = 0, size = 20) => http.get('/orders', { params: { page, size } })
 export const payOrder = (id) => http.patch(`/orders/${id}/pay`)
 export const cancelOrder = (id) => http.patch(`/orders/${id}/cancel`)
 export const receiveOrder = (id) => http.patch(`/orders/${id}/receive`)

@@ -8,6 +8,8 @@ import com.mall.entity.OrderEntity;
 import com.mall.entity.OrderItem;
 import com.mall.entity.PointRecord;
 import com.mall.entity.Product;
+import com.mall.entity.ProductDetailBlock;
+import com.mall.entity.ProductSku;
 import com.mall.entity.UserAccount;
 import com.mall.entity.UserCoupon;
 import com.mall.enums.OrderStatus;
@@ -21,17 +23,23 @@ import com.mall.repository.ProductDetailBlockRepository;
 import com.mall.repository.ProductRepository;
 import com.mall.repository.ProductSkuRepository;
 import com.mall.repository.UserCouponRepository;
+import com.mall.repository.UserRepository;
 import com.mall.vo.CartItemResponse;
 import com.mall.vo.CartResponse;
 import com.mall.vo.CategoryResponse;
 import com.mall.vo.OrderItemResponse;
 import com.mall.vo.OrderResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.ProductDetailBlockResponse;
 import com.mall.vo.ProductResponse;
 import com.mall.vo.ProductSkuResponse;
 import com.mall.vo.RecommendationResponse;
 import com.mall.vo.SearchSuggestResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,7 +48,9 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +65,7 @@ public class MallService {
     private final ProductDetailBlockRepository productDetailBlockRepository;
     private final PointRecordRepository pointRecordRepository;
     private final IdempotentRecordRepository idempotentRecordRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> categories() {
@@ -65,29 +76,45 @@ public class MallService {
 
     @Transactional(readOnly = true)
     public List<ProductResponse> products(String keyword, Long categoryId) {
+        return products(keyword, categoryId, 0, 200).content();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ProductResponse> products(String keyword, Long categoryId, int page, int size) {
         boolean hasKeyword = keyword != null && !keyword.isBlank();
-        List<Product> products;
+        Pageable pageable = pageRequest(page, size);
+        Page<Product> products;
         if (categoryId != null && hasKeyword) {
             products = productRepository.findByActiveTrueAndCategoryIdAndNameContainingIgnoreCaseOrderByIdDesc(
-                    categoryId, keyword.trim());
+                    categoryId, keyword.trim(), pageable);
         } else if (categoryId != null) {
-            products = productRepository.findByActiveTrueAndCategoryIdOrderByIdDesc(categoryId);
+            products = productRepository.findByActiveTrueAndCategoryIdOrderByIdDesc(categoryId, pageable);
         } else if (hasKeyword) {
-            products = productRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(keyword.trim());
+            products = productRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(keyword.trim(), pageable);
         } else {
-            products = productRepository.findByActiveTrueOrderByIdDesc();
+            products = productRepository.findByActiveTrueOrderByIdDesc(pageable);
         }
-        return products.stream().map(this::toProductResponse).toList();
+        List<Long> productIds = products.getContent().stream().map(Product::getId).toList();
+        Map<Long, List<ProductSku>> skuMap = productIds.isEmpty()
+                ? Map.of()
+                : productSkuRepository.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
+                .collect(Collectors.groupingBy(sku -> sku.getProduct().getId()));
+        Page<ProductResponse> responsePage = products.map(product -> toProductResponse(
+                product,
+                skuMap.getOrDefault(product.getId(), List.of()),
+                List.of()
+        ));
+        return PageResponse.of(responsePage);
     }
 
     @Transactional(readOnly = true)
     public SearchSuggestResponse suggest(String keyword) {
         String value = keyword == null ? "" : keyword.trim();
         List<String> productNames = (value.isBlank()
-                ? productRepository.findByActiveTrueOrderByIdDesc()
-                : productRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(value))
+                ? productRepository.findByActiveTrueOrderByIdDesc(PageRequest.of(0, 8)).getContent()
+                : productRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(
+                value, PageRequest.of(0, 8)).getContent())
                 .stream()
-                .limit(8)
                 .map(Product::getName)
                 .toList();
         List<String> categories = categoryRepository.findAllByOrderBySortOrderAscIdAsc().stream()
@@ -100,8 +127,14 @@ public class MallService {
 
     @Transactional(readOnly = true)
     public RecommendationResponse recommendations() {
-        List<ProductResponse> all = productRepository.findByActiveTrueOrderByIdDesc().stream()
-                .map(this::toProductResponse)
+        List<Product> products = productRepository.findByActiveTrueOrderByIdDesc(PageRequest.of(0, 50)).getContent();
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+        Map<Long, List<ProductSku>> skuMap = productIds.isEmpty()
+                ? Map.of()
+                : productSkuRepository.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
+                .collect(Collectors.groupingBy(sku -> sku.getProduct().getId()));
+        List<ProductResponse> all = products.stream()
+                .map(product -> toProductResponse(product, skuMap.getOrDefault(product.getId(), List.of()), List.of()))
                 .toList();
         List<ProductResponse> hot = all.stream()
                 .sorted(Comparator.comparing(ProductResponse::sales,
@@ -122,7 +155,7 @@ public class MallService {
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Product is unavailable");
         }
-        return toProductResponse(product);
+        return toProductResponse(product, true);
     }
 
     @Transactional
@@ -131,21 +164,24 @@ public class MallService {
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Product is unavailable");
         }
-        if (product.getStock() < request.quantity()) {
-            throw new BusinessException("Insufficient stock");
+        ProductSku sku = resolveSku(product, request.skuId());
+        if (sku.getStock() < request.quantity()) {
+            throw new BusinessException("Insufficient SKU stock");
         }
 
-        CartItem cartItem = cartItemRepository.findByUserAndProduct(user, product).orElseGet(() -> {
+        CartItem cartItem = cartItemRepository.findByUserIdAndProductIdAndSkuId(
+                user.getId(), product.getId(), sku.getId()).orElseGet(() -> {
             CartItem item = new CartItem();
             item.setUser(user);
             item.setProduct(product);
+            item.setSku(sku);
             item.setQuantity(0);
             return item;
         });
 
         int targetQuantity = cartItem.getQuantity() + request.quantity();
-        if (targetQuantity > product.getStock()) {
-            throw new BusinessException("Cart quantity exceeds stock");
+        if (targetQuantity > sku.getStock()) {
+            throw new BusinessException("Cart quantity exceeds SKU stock");
         }
         cartItem.setQuantity(targetQuantity);
         cartItemRepository.save(cartItem);
@@ -156,14 +192,20 @@ public class MallService {
         List<CartItemResponse> items = cartItemRepository.findByUserId(user.getId()).stream()
                 .sorted(Comparator.comparing(CartItem::getId).reversed())
                 .map(item -> {
-                    BigDecimal subtotal = item.getProduct().getPrice()
-                            .multiply(BigDecimal.valueOf(item.getQuantity()));
+                    ProductSku sku = item.getSku();
+                    Product product = item.getProduct();
+                    BigDecimal price = sku == null ? product.getPrice() : sku.getPrice();
+                    int stock = sku == null ? product.getStock() : sku.getStock();
+                    BigDecimal subtotal = price.multiply(BigDecimal.valueOf(item.getQuantity()));
                     return new CartItemResponse(
                             item.getId(),
-                            item.getProduct().getId(),
-                            item.getProduct().getName(),
-                            item.getProduct().getImageUrl(),
-                            item.getProduct().getPrice(),
+                            product.getId(),
+                            sku == null ? null : sku.getId(),
+                            sku == null ? product.getSpec() : sku.getSpecName(),
+                            product.getName(),
+                            product.getImageUrl(),
+                            price,
+                            stock,
                             item.getQuantity(),
                             subtotal
                     );
@@ -183,7 +225,8 @@ public class MallService {
         if (quantity < 1) {
             throw new BusinessException("Quantity must be at least 1");
         }
-        if (cartItem.getProduct().getStock() < quantity) {
+        int stock = cartItem.getSku() == null ? cartItem.getProduct().getStock() : cartItem.getSku().getStock();
+        if (stock < quantity) {
             throw new BusinessException("Insufficient stock");
         }
         cartItem.setQuantity(quantity);
@@ -226,35 +269,24 @@ public class MallService {
         BigDecimal total = BigDecimal.ZERO;
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
-            if (productRepository.decreaseStock(product.getId(), cartItem.getQuantity()) == 0) {
+            ProductSku sku = cartItem.getSku() == null ? resolveSku(product, null) : cartItem.getSku();
+            if (productSkuRepository.decreaseStock(sku.getId(), cartItem.getQuantity()) == 0
+                    || productRepository.decreaseStock(product.getId(), cartItem.getQuantity()) == 0) {
                 throw new BusinessException(product.getName() + " is out of stock");
             }
 
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setProduct(product);
+            orderItem.setSku(sku);
             orderItem.setQuantity(cartItem.getQuantity());
-            orderItem.setPrice(product.getPrice());
+            orderItem.setPrice(sku.getPrice());
             order.getItems().add(orderItem);
 
-            total = total.add(product.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
+            total = total.add(sku.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
         }
 
-        BigDecimal discount = BigDecimal.ZERO;
-        if (request.couponId() != null) {
-            UserCoupon userCoupon = userCouponRepository.findByUserIdOrderByClaimedAtDesc(user.getId()).stream()
-                    .filter(item -> item.getCoupon().getId().equals(request.couponId()))
-                    .findFirst()
-                    .orElseThrow(() -> new BusinessException("Coupon not claimed"));
-            if (Boolean.TRUE.equals(userCoupon.getUsed())) {
-                throw new BusinessException("Coupon already used");
-            }
-            if (total.compareTo(userCoupon.getCoupon().getThresholdAmount()) >= 0) {
-                discount = userCoupon.getCoupon().getDiscountAmount();
-                userCoupon.setUsed(true);
-            }
-        }
-
+        BigDecimal discount = couponDiscount(user, request.couponId(), total);
         int pointsUsed = request.pointsUsed() == null ? 0 : Math.max(0, request.pointsUsed());
         int availablePoints = user.getPoints() == null ? 0 : user.getPoints();
         if (pointsUsed > availablePoints) {
@@ -262,9 +294,9 @@ public class MallService {
         }
         BigDecimal pointsDiscount = BigDecimal.valueOf(pointsUsed)
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.DOWN);
-        BigDecimal payableBeforeFloor = total.subtract(discount).subtract(pointsDiscount);
-        if (payableBeforeFloor.compareTo(BigDecimal.ZERO) < 0) {
-            pointsDiscount = total.subtract(discount).max(BigDecimal.ZERO);
+        BigDecimal maxPointsDiscount = total.subtract(discount).max(BigDecimal.ZERO);
+        if (pointsDiscount.compareTo(maxPointsDiscount) > 0) {
+            pointsDiscount = maxPointsDiscount;
         }
         if (pointsUsed > 0) {
             user.setPoints(availablePoints - pointsUsed);
@@ -293,9 +325,13 @@ public class MallService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> orders(UserAccount user) {
-        return orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(this::toOrderResponse)
-                .toList();
+        return orders(user, 0, 200).content();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<OrderResponse> orders(UserAccount user, int page, int size) {
+        return PageResponse.of(orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageRequest(page, size))
+                .map(this::toOrderResponse));
     }
 
     @Transactional
@@ -309,6 +345,7 @@ public class MallService {
         order.setPaymentChannel("BALANCE");
         int earned = order.getTotalAmount().intValue();
         user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + earned);
+        userRepository.save(user);
         pointRecordRepository.save(pointRecord(user, earned, "EARN", "Order payment reward"));
         return toOrderResponse(orderRepository.save(order));
     }
@@ -321,6 +358,9 @@ public class MallService {
         }
         order.setStatus(OrderStatus.CANCELLED);
         for (OrderItem item : order.getItems()) {
+            if (item.getSku() != null) {
+                productSkuRepository.restoreStock(item.getSku().getId(), item.getQuantity());
+            }
             productRepository.restoreStock(item.getProduct().getId(), item.getQuantity());
         }
         return toOrderResponse(orderRepository.save(order));
@@ -336,9 +376,40 @@ public class MallService {
         return toOrderResponse(orderRepository.save(order));
     }
 
+    private BigDecimal couponDiscount(UserAccount user, Long couponId, BigDecimal total) {
+        if (couponId == null) {
+            return BigDecimal.ZERO;
+        }
+        UserCoupon userCoupon = userCouponRepository.findByUserIdOrderByClaimedAtDesc(user.getId()).stream()
+                .filter(item -> item.getCoupon().getId().equals(couponId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("Coupon not claimed"));
+        if (Boolean.TRUE.equals(userCoupon.getUsed())) {
+            throw new BusinessException("Coupon already used");
+        }
+        if (total.compareTo(userCoupon.getCoupon().getThresholdAmount()) < 0) {
+            return BigDecimal.ZERO;
+        }
+        userCoupon.setUsed(true);
+        return userCoupon.getCoupon().getDiscountAmount();
+    }
+
     private Product getProduct(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Product not found"));
+    }
+
+    private ProductSku resolveSku(Product product, Long skuId) {
+        ProductSku sku = skuId == null
+                ? productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream().findFirst()
+                .orElseThrow(() -> new BusinessException("SKU not found"))
+                : productSkuRepository.findById(skuId)
+                .filter(item -> item.getProduct().getId().equals(product.getId()))
+                .orElseThrow(() -> new BusinessException("SKU not found"));
+        if (!Boolean.TRUE.equals(sku.getActive())) {
+            throw new BusinessException("SKU is unavailable");
+        }
+        return sku;
     }
 
     private OrderEntity getUserOrder(UserAccount user, Long orderId) {
@@ -347,7 +418,15 @@ public class MallService {
                 .orElseThrow(() -> new BusinessException("Order not found"));
     }
 
-    private ProductResponse toProductResponse(Product product) {
+    private ProductResponse toProductResponse(Product product, boolean includeDetailBlocks) {
+        List<ProductSku> skus = productSkuRepository.findByProductIdOrderByIdAsc(product.getId());
+        List<ProductDetailBlock> blocks = includeDetailBlocks
+                ? productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId())
+                : List.of();
+        return toProductResponse(product, skus, blocks);
+    }
+
+    private ProductResponse toProductResponse(Product product, List<ProductSku> skus, List<ProductDetailBlock> blocks) {
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -364,11 +443,11 @@ public class MallService {
                 product.getFavoriteCount(),
                 product.getQuestionCount(),
                 product.getRating(),
-                productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream()
+                skus.stream()
                         .map(sku -> new ProductSkuResponse(sku.getId(), sku.getSkuCode(), sku.getSpecName(),
                                 sku.getPrice(), sku.getStock(), sku.getActive()))
                         .toList(),
-                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId()).stream()
+                blocks.stream()
                         .map(block -> new ProductDetailBlockResponse(block.getId(), block.getBlockType(),
                                 block.getContent(), block.getSortOrder()))
                         .toList(),
@@ -395,6 +474,8 @@ public class MallService {
                         .map(item -> new OrderItemResponse(
                                 item.getId(),
                                 item.getProduct().getId(),
+                                item.getSku() == null ? null : item.getSku().getId(),
+                                item.getSku() == null ? item.getProduct().getSpec() : item.getSku().getSpecName(),
                                 item.getProduct().getName(),
                                 item.getQuantity(),
                                 item.getPrice()
@@ -411,5 +492,11 @@ public class MallService {
         record.setDescription(description);
         record.setCreatedAt(LocalDateTime.now());
         return record;
+    }
+
+    private Pageable pageRequest(int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        return PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "id"));
     }
 }

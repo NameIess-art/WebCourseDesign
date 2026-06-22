@@ -90,14 +90,26 @@ public class OperationService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<MarketingActivityResponse> publicActivities() {
+        return marketingActivityRepository.findByStatusIgnoreCaseOrderByStartAtDesc("APPROVED").stream()
+                .map(this::toActivityResponse)
+                .toList();
+    }
+
     @Transactional
     public MarketingActivityResponse createActivity(MarketingActivityRequest request) {
+        return createActivity(request, false);
+    }
+
+    @Transactional
+    public MarketingActivityResponse createActivity(MarketingActivityRequest request, boolean autoApprove) {
         MarketingActivity activity = new MarketingActivity();
         activity.setTitle(request.title());
         activity.setType(request.type());
         activity.setRuleText(request.ruleText());
-        activity.setStatus("PENDING_REVIEW");
-        activity.setStartAt(LocalDateTime.now().plusHours(2));
+        activity.setStatus(autoApprove ? "APPROVED" : "PENDING_REVIEW");
+        activity.setStartAt(autoApprove ? LocalDateTime.now() : LocalDateTime.now().plusHours(2));
         activity.setEndAt(LocalDateTime.now().plusDays(7));
         return toActivityResponse(marketingActivityRepository.save(activity));
     }
@@ -148,15 +160,9 @@ public class OperationService {
 
     @Transactional(readOnly = true)
     public ReportResponse reports() {
-        BigDecimal revenue = orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == OrderStatus.PAID
-                        || order.getStatus() == OrderStatus.SHIPPED
-                        || order.getStatus() == OrderStatus.COMPLETED)
-                .map(order -> order.getTotalAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        int stockWarningCount = (int) productRepository.findAll().stream()
-                .filter(product -> product.getStock() <= 10)
-                .count();
+        List<OrderStatus> revenueStatuses = List.of(OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.COMPLETED);
+        BigDecimal revenue = orderRepository.sumTotalAmountByStatusIn(revenueStatuses);
+        int stockWarningCount = (int) productRepository.countByStockLessThanEqual(10);
         long orders = orderRepository.count();
         return new ReportResponse(
                 Math.max(1200L, orders * 37),
@@ -379,12 +385,8 @@ public class OperationService {
 
     @Transactional(readOnly = true)
     public List<SimpleItemResponse> analytics(String type) {
-        BigDecimal revenue = orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == OrderStatus.PAID
-                        || order.getStatus() == OrderStatus.SHIPPED
-                        || order.getStatus() == OrderStatus.COMPLETED)
-                .map(order -> order.getTotalAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal revenue = orderRepository.sumTotalAmountByStatusIn(
+                List.of(OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.COMPLETED));
         long products = productRepository.count();
         long orders = orderRepository.count();
         return List.of(

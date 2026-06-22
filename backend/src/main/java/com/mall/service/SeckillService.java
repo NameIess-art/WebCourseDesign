@@ -4,12 +4,14 @@ import com.mall.dto.SeckillEventRequest;
 import com.mall.entity.OrderEntity;
 import com.mall.entity.OrderItem;
 import com.mall.entity.Product;
+import com.mall.entity.ProductSku;
 import com.mall.entity.SeckillEvent;
 import com.mall.entity.UserAccount;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
 import com.mall.repository.OrderRepository;
 import com.mall.repository.ProductRepository;
+import com.mall.repository.ProductSkuRepository;
 import com.mall.repository.SeckillEventRepository;
 import com.mall.vo.OrderItemResponse;
 import com.mall.vo.OrderResponse;
@@ -36,6 +38,7 @@ public class SeckillService {
 
     private final SeckillEventRepository seckillEventRepository;
     private final ProductRepository productRepository;
+    private final ProductSkuRepository productSkuRepository;
     private final OrderRepository orderRepository;
     private final Map<String, Deque<Long>> requestWindows = new ConcurrentHashMap<>();
 
@@ -78,6 +81,12 @@ public class SeckillService {
         }
 
         Product product = event.getProduct();
+        ProductSku sku = productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream()
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("SKU not found"));
+        if (productSkuRepository.decreaseStock(sku.getId(), 1) == 0) {
+            throw new BusinessException("SKU stock sold out");
+        }
         OrderEntity order = new OrderEntity();
         order.setOrderNo("SK" + UUID.randomUUID().toString().replace("-", "").substring(0, 14).toUpperCase());
         order.setUser(user);
@@ -93,6 +102,7 @@ public class SeckillService {
         OrderItem item = new OrderItem();
         item.setOrder(order);
         item.setProduct(product);
+        item.setSku(sku);
         item.setQuantity(1);
         item.setPrice(event.getSeckillPrice());
         order.getItems().add(item);
@@ -140,6 +150,8 @@ public class SeckillService {
                         .map(item -> new OrderItemResponse(
                                 item.getId(),
                                 item.getProduct().getId(),
+                                item.getSku() == null ? null : item.getSku().getId(),
+                                item.getSku() == null ? item.getProduct().getSpec() : item.getSku().getSpecName(),
                                 item.getProduct().getName(),
                                 item.getQuantity(),
                                 item.getPrice()

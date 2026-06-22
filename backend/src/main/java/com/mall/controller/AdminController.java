@@ -9,6 +9,7 @@ import com.mall.vo.AfterSaleResponse;
 import com.mall.vo.ApiResponse;
 import com.mall.vo.DashboardResponse;
 import com.mall.vo.OrderResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.ProductResponse;
 import com.mall.vo.SimpleItemResponse;
 import jakarta.validation.Valid;
@@ -39,8 +40,9 @@ public class AdminController {
     }
 
     @GetMapping("/products")
-    public ApiResponse<List<ProductResponse>> products() {
-        return ApiResponse.success(adminService.products());
+    public ApiResponse<PageResponse<ProductResponse>> products(@RequestParam(defaultValue = "0") int page,
+                                                               @RequestParam(defaultValue = "50") int size) {
+        return ApiResponse.success(adminService.products(page, size));
     }
 
     @PostMapping("/products")
@@ -61,8 +63,10 @@ public class AdminController {
     }
 
     @GetMapping("/orders")
-    public ApiResponse<List<OrderResponse>> orders() {
-        return ApiResponse.success(adminService.orders());
+    public ApiResponse<PageResponse<OrderResponse>> orders(@RequestParam(required = false) String status,
+                                                           @RequestParam(defaultValue = "0") int page,
+                                                           @RequestParam(defaultValue = "50") int size) {
+        return ApiResponse.success(adminService.orders(status, page, size));
     }
 
     @PatchMapping("/orders/{orderId}/ship")

@@ -20,3 +20,6 @@ out/
 
 # Backend Build Output
 backend/target/
+
+# Backend Database
+backend/data/

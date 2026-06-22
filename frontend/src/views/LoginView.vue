@@ -2,15 +2,15 @@
   <section class="form-shell">
     <div class="form-card">
       <h1>欢迎回来</h1>
-      <p>用户账号：demo / demo123；管理员账号：admin / admin123。</p>
+      <p class="muted">演示账号：用户 demo / demo123，商家 merchant / merchant123，管理员 admin / admin123。</p>
       <form @submit.prevent="submit">
         <label>
           <span>用户名</span>
-          <input v-model="form.username" required />
+          <input v-model="form.username" autocomplete="username" required />
         </label>
         <label>
           <span>密码</span>
-          <input v-model="form.password" type="password" required />
+          <input v-model="form.password" type="password" autocomplete="current-password" required />
         </label>
         <button class="accent-button" :disabled="loading">{{ loading ? '登录中...' : '登录' }}</button>
       </form>
@@ -36,7 +36,9 @@ async function submit() {
   try {
     const res = await login(form)
     saveAuth(res.data)
-    router.push(res.data.role === 'ADMIN' ? '/admin' : '/')
+    if (res.data.role === 'ADMIN') router.push('/platform')
+    else if (res.data.role === 'MERCHANT') router.push('/merchant')
+    else router.push('/')
   } catch (error) {
     window.alert(error)
   } finally {

@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -25,7 +26,12 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", indexes = {
+        @Index(name = "idx_order_user_created", columnList = "user_id,created_at"),
+        @Index(name = "idx_order_status_created", columnList = "status,created_at"),
+        @Index(name = "idx_order_paid_at", columnList = "paid_at"),
+        @Index(name = "idx_order_idem", columnList = "idempotency_key")
+})
 public class OrderEntity {
 
     @Id

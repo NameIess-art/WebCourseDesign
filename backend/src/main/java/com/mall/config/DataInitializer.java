@@ -42,6 +42,7 @@ import com.mall.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -57,6 +58,7 @@ public class DataInitializer {
 
     @Bean
     CommandLineRunner initData(UserRepository userRepository,
+                               JdbcTemplate jdbcTemplate,
                                CategoryRepository categoryRepository,
                                ProductRepository productRepository,
                                ProductSkuRepository productSkuRepository,
@@ -76,21 +78,24 @@ public class DataInitializer {
                                PromotionRuleRepository promotionRuleRepository,
                                MarketingFlowRecordRepository marketingFlowRecordRepository) {
         return args -> {
-            if (userRepository.count() == 0) {
-                UserAccount admin = user("admin", "admin123", "admin@mall.local", "Mall Admin", UserRole.ADMIN, 1000, "ADMIN");
-                UserAccount merchant = user("merchant", "merchant123", "merchant@mall.local", "Demo Merchant", UserRole.MERCHANT, 300, "MERCHANT");
-                UserAccount user = user("demo", "demo123", "demo@mall.local", "Demo User", UserRole.USER, 260, "GOLD");
-                userRepository.saveAll(List.of(admin, merchant, user));
-            } else {
-                userRepository.findAll().forEach(item -> {
-                    if (item.getPoints() == null) {
-                        item.setPoints(0);
-                    }
-                    if (item.getMemberLevel() == null || item.getMemberLevel().isBlank()) {
-                        item.setMemberLevel(item.getRole() == UserRole.ADMIN ? "ADMIN" : "BASIC");
-                    }
-                });
-            }
+            relaxLegacyUserRoleConstraint(jdbcTemplate);
+            ensureUser(userRepository, "admin", "admin123", "admin@mall.local", "Mall Admin", UserRole.ADMIN, 1000, "ADMIN");
+            ensureUser(userRepository, "merchant", "merchant123", "merchant@mall.local", "Demo Merchant", UserRole.MERCHANT, 300, "MERCHANT");
+            ensureUser(userRepository, "demo", "demo123", "demo@mall.local", "Demo User", UserRole.USER, 260, "GOLD");
+            userRepository.findAll().forEach(item -> {
+                boolean changed = false;
+                if (item.getPoints() == null) {
+                    item.setPoints(0);
+                    changed = true;
+                }
+                if (item.getMemberLevel() == null || item.getMemberLevel().isBlank()) {
+                    item.setMemberLevel(item.getRole() == UserRole.ADMIN ? "ADMIN" : "BASIC");
+                    changed = true;
+                }
+                if (changed) {
+                    userRepository.save(item);
+                }
+            });
 
             if (categoryRepository.count() == 0) {
                 categoryRepository.saveAll(List.of(category("Digital", 1), category("Fashion", 2), category("Home", 3)));
@@ -296,6 +301,48 @@ public class DataInitializer {
         user.setPoints(points);
         user.setMemberLevel(level);
         return user;
+    }
+
+    private void ensureUser(UserRepository userRepository, String username, String password, String email,
+                            String displayName, UserRole role, int points, String level) {
+        userRepository.findByUsername(username).ifPresentOrElse(existing -> {
+            boolean changed = false;
+            if (existing.getRole() != role) {
+                existing.setRole(role);
+                changed = true;
+            }
+            if (existing.getDisplayName() == null || existing.getDisplayName().isBlank()) {
+                existing.setDisplayName(displayName);
+                changed = true;
+            }
+            if (existing.getEmail() == null || existing.getEmail().isBlank()) {
+                existing.setEmail(email);
+                changed = true;
+            }
+            if (existing.getPoints() == null) {
+                existing.setPoints(points);
+                changed = true;
+            }
+            if (existing.getMemberLevel() == null || existing.getMemberLevel().isBlank()) {
+                existing.setMemberLevel(level);
+                changed = true;
+            }
+            if (!passwordEncoder.matches(password, existing.getPassword())) {
+                existing.setPassword(passwordEncoder.encode(password));
+                changed = true;
+            }
+            if (changed) {
+                userRepository.save(existing);
+            }
+        }, () -> userRepository.save(user(username, password, email, displayName, role, points, level)));
+    }
+
+    private void relaxLegacyUserRoleConstraint(JdbcTemplate jdbcTemplate) {
+        try {
+            jdbcTemplate.execute("alter table users alter column role varchar(32) not null");
+        } catch (Exception ignored) {
+            // Non-H2 databases or fresh schemas may not need this compatibility migration.
+        }
     }
 
     private Category category(String name, int sortOrder) {

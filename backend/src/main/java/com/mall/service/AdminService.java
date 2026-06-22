@@ -30,11 +30,14 @@ import com.mall.repository.UserRepository;
 import com.mall.vo.AfterSaleResponse;
 import com.mall.vo.DashboardResponse;
 import com.mall.vo.OrderResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.ProductDetailBlockResponse;
 import com.mall.vo.ProductResponse;
 import com.mall.vo.ProductSkuResponse;
 import com.mall.vo.SimpleItemResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +45,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -59,13 +64,10 @@ public class AdminService {
     private final PaymentRecordRepository paymentRecordRepository;
     private final AfterSaleRecordRepository afterSaleRecordRepository;
 
+    @Transactional(readOnly = true)
     public DashboardResponse dashboard() {
-        BigDecimal totalRevenue = orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == OrderStatus.PAID
-                        || order.getStatus() == OrderStatus.SHIPPED
-                        || order.getStatus() == OrderStatus.COMPLETED)
-                .map(OrderEntity::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<OrderStatus> revenueStatuses = List.of(OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.COMPLETED);
+        BigDecimal totalRevenue = orderRepository.sumTotalAmountByStatusIn(revenueStatuses);
 
         return new DashboardResponse(
                 userRepository.count(),
@@ -76,8 +78,30 @@ public class AdminService {
         );
     }
 
+    @Transactional(readOnly = true)
     public List<ProductResponse> products() {
-        return productRepository.findAll().stream().map(this::toProductResponse).toList();
+        return products(0, 500).content();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<ProductResponse> products(int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        var productPage = productRepository.findAllByOrderByIdDesc(PageRequest.of(safePage, safeSize));
+        List<Long> productIds = productPage.getContent().stream().map(Product::getId).toList();
+        Map<Long, List<ProductSku>> skuMap = productIds.isEmpty()
+                ? Map.of()
+                : productSkuRepository.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
+                .collect(Collectors.groupingBy(sku -> sku.getProduct().getId()));
+        Map<Long, List<ProductDetailBlock>> detailMap = productIds.isEmpty()
+                ? Map.of()
+                : productDetailBlockRepository.findByProductIdInOrderByProductIdAscSortOrderAscIdAsc(productIds).stream()
+                .collect(Collectors.groupingBy(block -> block.getProduct().getId()));
+        return PageResponse.of(productPage.map(product -> toProductResponse(
+                product,
+                skuMap.getOrDefault(product.getId(), List.of()),
+                detailMap.getOrDefault(product.getId(), List.of())
+        )));
     }
 
     @Transactional
@@ -122,11 +146,26 @@ public class AdminService {
         return toOrderResponse(orderRepository.save(order));
     }
 
+    @Transactional(readOnly = true)
     public List<OrderResponse> orders() {
-        return orderRepository.findAll().stream()
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .map(this::toOrderResponse)
-                .toList();
+        return orders(null, 0, 500).content();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<OrderResponse> orders(String status, int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        PageRequest pageRequest = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        if (status == null || status.isBlank()) {
+            return PageResponse.of(orderRepository.findAllByOrderByCreatedAtDesc(pageRequest).map(this::toOrderResponse));
+        }
+        try {
+            OrderStatus orderStatus = OrderStatus.valueOf(status.trim().toUpperCase());
+            return PageResponse.of(orderRepository.findByStatusOrderByCreatedAtDesc(orderStatus, pageRequest)
+                    .map(this::toOrderResponse));
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException("Invalid order status");
+        }
     }
 
     @Transactional
@@ -171,22 +210,15 @@ public class AdminService {
     @Transactional
     public ReconciliationRecord reconcile(LocalDate bizDate) {
         LocalDate date = bizDate == null ? LocalDate.now() : bizDate;
-        List<OrderEntity> paidOrders = orderRepository.findAll().stream()
-                .filter(order -> order.getPaidAt() != null && order.getPaidAt().toLocalDate().equals(date))
-                .toList();
-        BigDecimal orderAmount = paidOrders.stream()
-                .map(OrderEntity::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal paymentAmount = paymentRecordRepository.findAll().stream()
-                .filter(payment -> "PAID".equals(payment.getStatus())
-                        && payment.getPaidAt() != null
-                        && payment.getPaidAt().toLocalDate().equals(date))
-                .map(PaymentRecord::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        LocalDateTime startAt = date.atStartOfDay();
+        LocalDateTime endAt = date.plusDays(1).atStartOfDay();
+        long paidOrderCount = orderRepository.countPaidOrdersBetween(startAt, endAt);
+        BigDecimal orderAmount = orderRepository.sumPaidOrderAmountBetween(startAt, endAt);
+        BigDecimal paymentAmount = paymentRecordRepository.sumPaidAmountBetween(startAt, endAt);
         ReconciliationRecord record = reconciliationRecordRepository.findByBizDate(date)
                 .orElseGet(ReconciliationRecord::new);
         record.setBizDate(date);
-        record.setOrderCount((long) paidOrders.size());
+        record.setOrderCount(paidOrderCount);
         record.setOrderAmount(orderAmount);
         record.setPaymentAmount(paymentAmount);
         record.setStatus(orderAmount.compareTo(paymentAmount) == 0 ? "MATCHED" : "DIFF");
@@ -301,6 +333,14 @@ public class AdminService {
     }
 
     private ProductResponse toProductResponse(Product product) {
+        return toProductResponse(
+                product,
+                productSkuRepository.findByProductIdOrderByIdAsc(product.getId()),
+                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId())
+        );
+    }
+
+    private ProductResponse toProductResponse(Product product, List<ProductSku> skus, List<ProductDetailBlock> blocks) {
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -317,11 +357,11 @@ public class AdminService {
                 product.getFavoriteCount(),
                 product.getQuestionCount(),
                 product.getRating(),
-                productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream()
+                skus.stream()
                         .map(sku -> new ProductSkuResponse(sku.getId(), sku.getSkuCode(), sku.getSpecName(),
                                 sku.getPrice(), sku.getStock(), sku.getActive()))
                         .toList(),
-                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId()).stream()
+                blocks.stream()
                         .map(block -> new ProductDetailBlockResponse(block.getId(), block.getBlockType(),
                                 block.getContent(), block.getSortOrder()))
                         .toList(),
@@ -348,6 +388,8 @@ public class AdminService {
                         .map(item -> new com.mall.vo.OrderItemResponse(
                                 item.getId(),
                                 item.getProduct().getId(),
+                                item.getSku() == null ? null : item.getSku().getId(),
+                                item.getSku() == null ? item.getProduct().getSpec() : item.getSku().getSpecName(),
                                 item.getProduct().getName(),
                                 item.getQuantity(),
                                 item.getPrice()
