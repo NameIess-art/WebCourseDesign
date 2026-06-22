@@ -1,44 +1,52 @@
 <template>
   <section class="order-layout">
     <section class="section-card">
-    <div class="section-head">
-      <h1>我的订单</h1>
-      <button class="ghost-button" @click="loadOrders">刷新</button>
-    </div>
+      <div class="section-head">
+        <h1>我的订单</h1>
+        <button class="ghost-button" @click="loadOrders">刷新</button>
+      </div>
 
-    <div v-if="orders.length" class="stack-list">
-      <article v-for="order in orders" :key="order.id" class="order-card">
-        <div class="section-head">
-          <div>
-            <strong>{{ order.orderNo }}</strong>
-            <p>{{ formatDate(order.createdAt) }}</p>
+      <div v-if="orders.length" class="stack-list">
+        <article v-for="order in orders" :key="order.id" class="order-card">
+          <div class="section-head">
+            <div>
+              <strong>{{ order.orderNo }}</strong>
+              <p>{{ formatDate(order.createdAt) }}</p>
+            </div>
+            <span class="tag-chip">{{ statusText[order.status] || order.status }}</span>
           </div>
-          <span class="tag-chip">{{ statusText[order.status] || order.status }}</span>
-        </div>
-        <div class="stack-list small-gap">
-          <div v-for="item in order.items" :key="item.id" class="inline-meta">
-            <span>{{ item.productName }}</span>
-            <span>{{ item.quantity }} × ￥{{ item.price }}</span>
+          <div class="stack-list small-gap">
+            <div v-for="item in order.items" :key="item.id" class="inline-meta">
+              <span>{{ item.productName }}</span>
+              <span>{{ item.quantity }} x ¥{{ item.price }}</span>
+            </div>
           </div>
-        </div>
-        <div class="order-footer">
-          <strong>合计 ￥{{ order.totalAmount }}</strong>
-          <div class="row-actions">
-            <button v-if="order.status === 'PENDING_PAYMENT'" class="accent-button" @click="pay(order.id)">模拟支付</button>
-            <button v-if="order.status === 'PENDING_PAYMENT'" class="ghost-button" @click="cancel(order.id)">取消订单</button>
-            <button v-if="order.status === 'SHIPPED'" class="ghost-button" @click="receive(order.id)">确认收货</button>
-            <button class="ghost-button" @click="showLogistics(order.id)">物流</button>
-            <button v-if="['PAID','SHIPPED','COMPLETED'].includes(order.status)" class="ghost-button" @click="afterSale(order.id)">售后</button>
+          <div class="notice-box">
+            <span>原价 ¥{{ order.originalAmount }}</span>
+            <span>优惠 -¥{{ order.discountAmount }}，积分 -¥{{ order.pointsDiscountAmount }}</span>
+            <strong>实付 ¥{{ order.totalAmount }}</strong>
+            <span v-if="order.paymentChannel">支付渠道：{{ order.paymentChannel }}</span>
           </div>
-        </div>
-        <div v-if="logistics[order.id]" class="notice-box">
-          <strong>{{ logistics[order.id].carrier }} · {{ logistics[order.id].trackingNo }}</strong>
-          <p v-for="trace in logistics[order.id].traces" :key="trace">{{ trace }}</p>
-        </div>
-      </article>
-    </div>
-    <p v-else>暂无订单。</p>
-
+          <div class="order-footer">
+            <div class="row-actions" v-if="order.status === 'PENDING_PAYMENT'">
+              <button class="accent-button" @click="pay(order.id, 'ALIPAY')">支付宝</button>
+              <button class="accent-button" @click="pay(order.id, 'WECHAT')">微信</button>
+              <button class="accent-button" @click="pay(order.id, 'BANK')">银行卡</button>
+              <button class="ghost-button" @click="cancel(order.id)">取消</button>
+            </div>
+            <div class="row-actions">
+              <button v-if="order.status === 'SHIPPED'" class="ghost-button" @click="receive(order.id)">确认收货</button>
+              <button class="ghost-button" @click="showLogistics(order.id)">物流</button>
+              <button v-if="['PAID','SHIPPED','COMPLETED'].includes(order.status)" class="ghost-button" @click="afterSale(order.id)">售后</button>
+            </div>
+          </div>
+          <div v-if="logistics[order.id]" class="notice-box">
+            <strong>{{ logistics[order.id].carrier }} · {{ logistics[order.id].trackingNo }}</strong>
+            <p v-for="trace in logistics[order.id].traces" :key="trace">{{ trace }}</p>
+          </div>
+        </article>
+      </div>
+      <p v-else>暂无订单。</p>
     </section>
 
     <section class="section-card">
@@ -59,10 +67,11 @@
 import { onMounted, ref } from 'vue'
 import {
   cancelOrder,
+  createPayment,
   getAfterSales,
   getLogistics,
   getOrders,
-  payOrder,
+  mockPaymentCallback,
   receiveOrder,
   requestAfterSale
 } from '../api/mall'
@@ -82,14 +91,25 @@ const formatDate = (value) => new Date(value).toLocaleString('zh-CN')
 
 async function loadOrders() {
   const [orderRes, afterSaleRes] = await Promise.all([getOrders(), getAfterSales()])
-  const res = orderRes
-  orders.value = res.data
+  orders.value = orderRes.data
   afterSales.value = afterSaleRes.data
 }
 
-async function pay(id) {
-  await payOrder(id)
-  await loadOrders()
+async function pay(id, channel) {
+  try {
+    const payment = await createPayment({
+      orderId: id,
+      channel,
+      idempotencyKey: `payment-${id}-${channel}-${Date.now()}`
+    })
+    await mockPaymentCallback({
+      paymentNo: payment.data.paymentNo,
+      channelTradeNo: `${channel}-${Date.now()}`
+    })
+    await loadOrders()
+  } catch (error) {
+    window.alert(error)
+  }
 }
 
 async function cancel(id) {

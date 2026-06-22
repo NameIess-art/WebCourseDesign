@@ -81,9 +81,13 @@ public class SeckillService {
         OrderEntity order = new OrderEntity();
         order.setOrderNo("SK" + UUID.randomUUID().toString().replace("-", "").substring(0, 14).toUpperCase());
         order.setUser(user);
-        order.setShippingAddress("秒杀订单，请在地址管理中确认收货地址");
+        order.setShippingAddress("Seckill order, please confirm delivery address in address center");
         order.setStatus(OrderStatus.PENDING_PAYMENT);
         order.setCreatedAt(LocalDateTime.now());
+        order.setOriginalAmount(event.getSeckillPrice());
+        order.setDiscountAmount(BigDecimal.ZERO);
+        order.setPointsUsed(0);
+        order.setPointsDiscountAmount(BigDecimal.ZERO);
         order.setTotalAmount(event.getSeckillPrice());
 
         OrderItem item = new OrderItem();
@@ -124,6 +128,12 @@ public class SeckillService {
                 order.getOrderNo(),
                 order.getStatus().name(),
                 order.getTotalAmount() == null ? BigDecimal.ZERO : order.getTotalAmount(),
+                order.getOriginalAmount() == null ? BigDecimal.ZERO : order.getOriginalAmount(),
+                order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount(),
+                order.getPointsUsed() == null ? 0 : order.getPointsUsed(),
+                order.getPointsDiscountAmount() == null ? BigDecimal.ZERO : order.getPointsDiscountAmount(),
+                order.getPaymentChannel(),
+                order.getAuditStatus() == null ? "PENDING" : order.getAuditStatus(),
                 order.getShippingAddress(),
                 order.getCreatedAt(),
                 order.getItems().stream()

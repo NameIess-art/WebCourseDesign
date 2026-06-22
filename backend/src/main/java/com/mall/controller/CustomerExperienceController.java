@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,6 +47,13 @@ public class CustomerExperienceController {
     public ApiResponse<AddressResponse> saveAddress(@AuthenticationPrincipal UserAccount user,
                                                     @Valid @RequestBody AddressRequest request) {
         return ApiResponse.success(customerExperienceService.saveAddress(user, request));
+    }
+
+    @PutMapping("/addresses/{id}")
+    public ApiResponse<AddressResponse> updateAddress(@AuthenticationPrincipal UserAccount user,
+                                                      @PathVariable Long id,
+                                                      @Valid @RequestBody AddressRequest request) {
+        return ApiResponse.success(customerExperienceService.updateAddress(user, id, request));
     }
 
     @DeleteMapping("/addresses/{id}")

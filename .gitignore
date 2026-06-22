@@ -17,3 +17,6 @@ build/
 .next/
 out/
 *.docx
+
+# Backend Build Output
+backend/target/

@@ -37,4 +37,10 @@ public class UserAccount {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;
+
+    @Column
+    private Integer points = 0;
+
+    @Column(length = 30)
+    private String memberLevel = "BASIC";
 }

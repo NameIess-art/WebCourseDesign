@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record ProductRequest(
         @NotBlank String name,
@@ -15,6 +16,11 @@ public record ProductRequest(
         @NotNull @DecimalMin("0.01") BigDecimal price,
         @NotNull @Min(0) Integer stock,
         @NotNull Long categoryId,
-        @NotNull Boolean active
+        @NotNull Boolean active,
+        String skuCode,
+        String spec,
+        String promotionTag,
+        List<ProductSkuRequest> skus,
+        List<ProductDetailBlockRequest> detailBlocks
 ) {
 }

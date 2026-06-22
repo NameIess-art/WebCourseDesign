@@ -47,7 +47,8 @@ class MallServiceIntegrationTest {
         mallService.addToCart(user, new CartItemRequest(product.getId(), 2));
         assertThat(mallService.cart(user).totalAmount()).isPositive();
 
-        OrderResponse order = mallService.checkout(user, new CheckoutRequest("Shanghai Demo Road 1001"));
+        OrderResponse order = mallService.checkout(user, new CheckoutRequest("Shanghai Demo Road 1001",
+                null, 0, null, "test-order-lifecycle"));
         assertThat(order.status()).isEqualTo(OrderStatus.PENDING_PAYMENT.name());
         assertThat(productRepository.findById(product.getId()).orElseThrow().getStock()).isEqualTo(originalStock - 2);
         assertThatThrownBy(() -> mallService.confirmReceived(user, order.id()))
@@ -66,7 +67,8 @@ class MallServiceIntegrationTest {
         int originalStock = product.getStock();
 
         mallService.addToCart(user, new CartItemRequest(product.getId(), 1));
-        OrderResponse order = mallService.checkout(user, new CheckoutRequest("Shanghai Demo Road 1001"));
+        OrderResponse order = mallService.checkout(user, new CheckoutRequest("Shanghai Demo Road 1001",
+                null, 0, null, "test-cancel-restore"));
         mallService.cancel(user, order.id());
 
         assertThat(productRepository.findById(product.getId()).orElseThrow().getStock()).isEqualTo(originalStock);

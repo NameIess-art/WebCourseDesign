@@ -1,6 +1,7 @@
 package com.mall.vo;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record ProductResponse(
         Long id,
@@ -18,6 +19,8 @@ public record ProductResponse(
         Integer favoriteCount,
         Integer questionCount,
         BigDecimal rating,
+        List<ProductSkuResponse> skus,
+        List<ProductDetailBlockResponse> detailBlocks,
         Long categoryId,
         String categoryName
 ) {

@@ -1,0 +1,69 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: mall-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mall
+      MYSQL_USER: mall
+      MYSQL_PASSWORD: mall
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mall-mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7.4
+    container_name: mall-redis
+    ports:
+      - "6379:6379"
+
+  nacos:
+    image: nacos/nacos-server:v2.4.3
+    container_name: mall-nacos
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.3.1
+    container_name: mall-rocketmq-namesrv
+    command: sh mqnamesrv
+    ports:
+      - "9876:9876"
+
+  rocketmq-broker:
+    image: apache/rocketmq:5.3.1
+    container_name: mall-rocketmq-broker
+    depends_on:
+      - rocketmq-namesrv
+    environment:
+      NAMESRV_ADDR: rocketmq-namesrv:9876
+    command: sh mqbroker -n rocketmq-namesrv:9876
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+      - "10912:10912"
+
+  seata:
+    image: seataio/seata-server:2.1.0
+    container_name: mall-seata
+    environment:
+      SEATA_IP: 127.0.0.1
+      SEATA_PORT: 8091
+    ports:
+      - "8091:8091"
+      - "7091:7091"
+
+  sentinel-dashboard:
+    image: bladex/sentinel-dashboard:1.8.8
+    container_name: mall-sentinel
+    ports:
+      - "8858:8858"
+
+volumes:
+  mall-mysql-data:

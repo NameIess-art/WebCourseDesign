@@ -1,23 +1,46 @@
 package com.mall.service;
 
+import com.mall.dto.AfterSaleProcessRequest;
+import com.mall.dto.OrderAuditRequest;
+import com.mall.dto.OrderModifyRequest;
 import com.mall.dto.ProductRequest;
+import com.mall.entity.AfterSaleRecord;
 import com.mall.entity.Category;
+import com.mall.entity.OrderAuditRecord;
 import com.mall.entity.OrderEntity;
+import com.mall.entity.OrderModifyRecord;
+import com.mall.entity.PaymentRecord;
 import com.mall.entity.Product;
+import com.mall.entity.ProductDetailBlock;
+import com.mall.entity.ProductSku;
+import com.mall.entity.ReconciliationRecord;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
+import com.mall.repository.AfterSaleRecordRepository;
 import com.mall.repository.CategoryRepository;
+import com.mall.repository.OrderAuditRecordRepository;
+import com.mall.repository.OrderModifyRecordRepository;
 import com.mall.repository.OrderRepository;
+import com.mall.repository.PaymentRecordRepository;
+import com.mall.repository.ProductDetailBlockRepository;
 import com.mall.repository.ProductRepository;
+import com.mall.repository.ProductSkuRepository;
+import com.mall.repository.ReconciliationRecordRepository;
 import com.mall.repository.UserRepository;
+import com.mall.vo.AfterSaleResponse;
 import com.mall.vo.DashboardResponse;
 import com.mall.vo.OrderResponse;
+import com.mall.vo.ProductDetailBlockResponse;
 import com.mall.vo.ProductResponse;
+import com.mall.vo.ProductSkuResponse;
+import com.mall.vo.SimpleItemResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -28,6 +51,13 @@ public class AdminService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final OrderRepository orderRepository;
+    private final ProductSkuRepository productSkuRepository;
+    private final ProductDetailBlockRepository productDetailBlockRepository;
+    private final OrderAuditRecordRepository orderAuditRecordRepository;
+    private final OrderModifyRecordRepository orderModifyRecordRepository;
+    private final ReconciliationRecordRepository reconciliationRecordRepository;
+    private final PaymentRecordRepository paymentRecordRepository;
+    private final AfterSaleRecordRepository afterSaleRecordRepository;
 
     public DashboardResponse dashboard() {
         BigDecimal totalRevenue = orderRepository.findAll().stream()
@@ -56,7 +86,9 @@ public class AdminService {
                 .orElseThrow(() -> new BusinessException("Category not found"));
         Product product = new Product();
         updateFields(product, request, category);
-        return toProductResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        syncProductChildren(saved, request);
+        return toProductResponse(saved);
     }
 
     @Transactional
@@ -66,7 +98,9 @@ public class AdminService {
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException("Category not found"));
         updateFields(product, request, category);
-        return toProductResponse(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        syncProductChildren(saved, request);
+        return toProductResponse(saved);
     }
 
     @Transactional
@@ -85,46 +119,104 @@ public class AdminService {
             throw new BusinessException("Only paid orders can be shipped");
         }
         order.setStatus(OrderStatus.SHIPPED);
-        OrderEntity saved = orderRepository.save(order);
-        return new OrderResponse(
-                saved.getId(),
-                saved.getOrderNo(),
-                saved.getStatus().name(),
-                saved.getTotalAmount(),
-                saved.getShippingAddress(),
-                saved.getCreatedAt(),
-                saved.getItems().stream()
-                        .map(item -> new com.mall.vo.OrderItemResponse(
-                                item.getId(),
-                                item.getProduct().getId(),
-                                item.getProduct().getName(),
-                                item.getQuantity(),
-                                item.getPrice()
-                        ))
-                        .toList()
-        );
+        return toOrderResponse(orderRepository.save(order));
     }
 
     public List<OrderResponse> orders() {
         return orderRepository.findAll().stream()
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .map(order -> new OrderResponse(
-                        order.getId(),
-                        order.getOrderNo(),
-                        order.getStatus().name(),
-                        order.getTotalAmount(),
-                        order.getShippingAddress(),
-                        order.getCreatedAt(),
-                        order.getItems().stream()
-                                .map(item -> new com.mall.vo.OrderItemResponse(
-                                        item.getId(),
-                                        item.getProduct().getId(),
-                                        item.getProduct().getName(),
-                                        item.getQuantity(),
-                                        item.getPrice()
-                                ))
-                                .toList()
-                ))
+                .map(this::toOrderResponse)
+                .toList();
+    }
+
+    @Transactional
+    public OrderResponse auditOrder(Long orderId, OrderAuditRequest request) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException("Order not found"));
+        OrderAuditRecord record = new OrderAuditRecord();
+        record.setOrder(order);
+        record.setApproved(request.approved());
+        record.setRemark(request.remark());
+        record.setCreatedAt(LocalDateTime.now());
+        orderAuditRecordRepository.save(record);
+        order.setAuditStatus(Boolean.TRUE.equals(request.approved()) ? "APPROVED" : "REJECTED");
+        order.setMerchantRemark(request.remark());
+        return toOrderResponse(orderRepository.save(order));
+    }
+
+    @Transactional
+    public OrderResponse modifyOrder(Long orderId, OrderModifyRequest request) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException("Order not found"));
+        if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getStatus() != OrderStatus.PAID) {
+            throw new BusinessException("Only unpaid or paid orders can be modified");
+        }
+        OrderModifyRecord record = new OrderModifyRecord();
+        record.setOrder(order);
+        record.setBeforeAmount(order.getTotalAmount());
+        record.setAfterAmount(request.totalAmount() == null ? order.getTotalAmount() : request.totalAmount());
+        record.setBeforeAddress(order.getShippingAddress());
+        record.setAfterAddress(request.shippingAddress());
+        record.setRemark(request.remark());
+        record.setCreatedAt(LocalDateTime.now());
+        orderModifyRecordRepository.save(record);
+        order.setShippingAddress(request.shippingAddress());
+        if (request.totalAmount() != null) {
+            order.setTotalAmount(request.totalAmount());
+        }
+        order.setMerchantRemark(request.remark());
+        return toOrderResponse(orderRepository.save(order));
+    }
+
+    @Transactional
+    public ReconciliationRecord reconcile(LocalDate bizDate) {
+        LocalDate date = bizDate == null ? LocalDate.now() : bizDate;
+        List<OrderEntity> paidOrders = orderRepository.findAll().stream()
+                .filter(order -> order.getPaidAt() != null && order.getPaidAt().toLocalDate().equals(date))
+                .toList();
+        BigDecimal orderAmount = paidOrders.stream()
+                .map(OrderEntity::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal paymentAmount = paymentRecordRepository.findAll().stream()
+                .filter(payment -> "PAID".equals(payment.getStatus())
+                        && payment.getPaidAt() != null
+                        && payment.getPaidAt().toLocalDate().equals(date))
+                .map(PaymentRecord::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        ReconciliationRecord record = reconciliationRecordRepository.findByBizDate(date)
+                .orElseGet(ReconciliationRecord::new);
+        record.setBizDate(date);
+        record.setOrderCount((long) paidOrders.size());
+        record.setOrderAmount(orderAmount);
+        record.setPaymentAmount(paymentAmount);
+        record.setStatus(orderAmount.compareTo(paymentAmount) == 0 ? "MATCHED" : "DIFF");
+        return reconciliationRecordRepository.save(record);
+    }
+
+    @Transactional
+    public AfterSaleResponse processAfterSale(Long id, AfterSaleProcessRequest request) {
+        AfterSaleRecord record = afterSaleRecordRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("After-sale record not found"));
+        record.setStatus(request.status());
+        AfterSaleRecord saved = afterSaleRecordRepository.save(record);
+        return new AfterSaleResponse(saved.getId(), saved.getOrder().getOrderNo(), saved.getType(),
+                saved.getReason() + "; process remark: " + request.remark(), saved.getStatus(), saved.getCreatedAt());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AfterSaleResponse> allAfterSales() {
+        return afterSaleRecordRepository.findAll().stream()
+                .map(record -> new AfterSaleResponse(record.getId(), record.getOrder().getOrderNo(),
+                        record.getType(), record.getReason(), record.getStatus(), record.getCreatedAt()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SimpleItemResponse> reconciliations() {
+        return reconciliationRecordRepository.findAll().stream()
+                .map(record -> new SimpleItemResponse(record.getId(), record.getBizDate().toString(),
+                        record.getStatus(), "orders=" + record.getOrderAmount()
+                        + ", payments=" + record.getPaymentAmount(), record.getStatus()))
                 .toList();
     }
 
@@ -140,15 +232,11 @@ public class AdminService {
         if (product.getSales() == null) {
             product.setSales(0);
         }
-        if (product.getSkuCode() == null || product.getSkuCode().isBlank()) {
-            product.setSkuCode("SKU-" + System.currentTimeMillis());
-        }
-        if (product.getSpec() == null || product.getSpec().isBlank()) {
-            product.setSpec("Standard");
-        }
-        if (product.getPromotionTag() == null || product.getPromotionTag().isBlank()) {
-            product.setPromotionTag("Platform Pick");
-        }
+        product.setSkuCode(request.skuCode() == null || request.skuCode().isBlank()
+                ? "SKU-" + System.currentTimeMillis() : request.skuCode());
+        product.setSpec(request.spec() == null || request.spec().isBlank() ? "Standard" : request.spec());
+        product.setPromotionTag(request.promotionTag() == null || request.promotionTag().isBlank()
+                ? "Platform Pick" : request.promotionTag());
         if (product.getFavoriteCount() == null) {
             product.setFavoriteCount(0);
         }
@@ -158,6 +246,58 @@ public class AdminService {
         if (product.getRating() == null) {
             product.setRating(new BigDecimal("4.80"));
         }
+    }
+
+    private void syncProductChildren(Product product, ProductRequest request) {
+        productSkuRepository.deleteAll(productSkuRepository.findByProductIdOrderByIdAsc(product.getId()));
+        List<ProductSku> skus = request.skus() == null || request.skus().isEmpty()
+                ? List.of(defaultSku(product))
+                : request.skus().stream().map(item -> {
+                    ProductSku sku = new ProductSku();
+                    sku.setProduct(product);
+                    sku.setSkuCode(item.skuCode());
+                    sku.setSpecName(item.specName());
+                    sku.setPrice(item.price());
+                    sku.setStock(item.stock());
+                    sku.setActive(item.active() == null || item.active());
+                    return sku;
+                }).toList();
+        productSkuRepository.saveAll(skus);
+
+        productDetailBlockRepository.deleteAll(
+                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId()));
+        List<ProductDetailBlock> blocks = request.detailBlocks() == null || request.detailBlocks().isEmpty()
+                ? List.of(defaultDetailBlock(product))
+                : request.detailBlocks().stream().map(item -> {
+                    ProductDetailBlock block = new ProductDetailBlock();
+                    block.setProduct(product);
+                    block.setBlockType(item.blockType());
+                    block.setContent(item.content());
+                    block.setSortOrder(item.sortOrder() == null ? 0 : item.sortOrder());
+                    return block;
+                }).toList();
+        productDetailBlockRepository.saveAll(blocks);
+    }
+
+    private ProductSku defaultSku(Product product) {
+        ProductSku sku = new ProductSku();
+        sku.setProduct(product);
+        sku.setSkuCode(product.getSkuCode());
+        sku.setSpecName(product.getSpec());
+        sku.setPrice(product.getPrice());
+        sku.setStock(product.getStock());
+        sku.setActive(product.getActive());
+        return sku;
+    }
+
+    private ProductDetailBlock defaultDetailBlock(Product product) {
+        ProductDetailBlock block = new ProductDetailBlock();
+        block.setProduct(product);
+        block.setBlockType("TEXT");
+        block.setContent(product.getDescription() == null || product.getDescription().isBlank()
+                ? product.getSubtitle() : product.getDescription());
+        block.setSortOrder(0);
+        return block;
     }
 
     private ProductResponse toProductResponse(Product product) {
@@ -177,8 +317,42 @@ public class AdminService {
                 product.getFavoriteCount(),
                 product.getQuestionCount(),
                 product.getRating(),
+                productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream()
+                        .map(sku -> new ProductSkuResponse(sku.getId(), sku.getSkuCode(), sku.getSpecName(),
+                                sku.getPrice(), sku.getStock(), sku.getActive()))
+                        .toList(),
+                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId()).stream()
+                        .map(block -> new ProductDetailBlockResponse(block.getId(), block.getBlockType(),
+                                block.getContent(), block.getSortOrder()))
+                        .toList(),
                 product.getCategory().getId(),
                 product.getCategory().getName()
+        );
+    }
+
+    private OrderResponse toOrderResponse(OrderEntity order) {
+        return new OrderResponse(
+                order.getId(),
+                order.getOrderNo(),
+                order.getStatus().name(),
+                order.getTotalAmount(),
+                order.getOriginalAmount() == null ? BigDecimal.ZERO : order.getOriginalAmount(),
+                order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount(),
+                order.getPointsUsed() == null ? 0 : order.getPointsUsed(),
+                order.getPointsDiscountAmount() == null ? BigDecimal.ZERO : order.getPointsDiscountAmount(),
+                order.getPaymentChannel(),
+                order.getAuditStatus() == null ? "PENDING" : order.getAuditStatus(),
+                order.getShippingAddress(),
+                order.getCreatedAt(),
+                order.getItems().stream()
+                        .map(item -> new com.mall.vo.OrderItemResponse(
+                                item.getId(),
+                                item.getProduct().getId(),
+                                item.getProduct().getName(),
+                                item.getQuantity(),
+                                item.getPrice()
+                        ))
+                        .toList()
         );
     }
 }

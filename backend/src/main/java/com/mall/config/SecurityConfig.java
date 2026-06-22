@@ -29,8 +29,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/seckill-events/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**",
+                                "/api/search/suggest", "/api/recommendations", "/api/seckill-events/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/callback/mock").permitAll()
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "MERCHANT")
                         .anyRequest().authenticated()
                 )
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()))

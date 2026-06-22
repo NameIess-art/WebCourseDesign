@@ -17,17 +17,29 @@
     </section>
 
     <section class="section-card">
-      <div class="section-head">
-        <h2>收货地址</h2>
-        <button class="accent-button" @click="saveDemoAddress">新增示例地址</button>
-      </div>
+      <div class="section-head"><h2>收货地址</h2></div>
+      <form class="admin-form action-form" @submit.prevent="submitAddress">
+        <input v-model="addressForm.receiver" placeholder="收件人" required />
+        <input v-model="addressForm.phone" placeholder="手机号" required />
+        <input v-model="addressForm.region" placeholder="省市区" required />
+        <input v-model="addressForm.detail" placeholder="详细地址" required />
+        <label class="inline-meta">
+          <input v-model="addressForm.defaultAddress" type="checkbox" />
+          <span>设为默认地址</span>
+        </label>
+        <button class="accent-button">{{ addressForm.id ? '保存地址' : '新增地址' }}</button>
+      </form>
       <div class="stack-list">
         <article v-for="address in addresses" :key="address.id" class="row-card">
           <div class="row-main">
             <strong>{{ address.receiver }} · {{ address.phone }}</strong>
             <span>{{ address.region }} {{ address.detail }}</span>
           </div>
-          <span class="tag-chip" v-if="address.defaultAddress">默认</span>
+          <div class="row-actions">
+            <span class="tag-chip" v-if="address.defaultAddress">默认</span>
+            <button class="ghost-button" @click="editAddress(address)">编辑</button>
+            <button class="ghost-button" @click="removeAddress(address.id)">删除</button>
+          </div>
         </article>
       </div>
     </section>
@@ -37,8 +49,8 @@
       <div class="product-grid">
         <article v-for="coupon in coupons" :key="coupon.id" class="stat-card">
           <span>{{ coupon.name }}</span>
-          <strong>￥{{ coupon.discountAmount }}</strong>
-          <p class="muted">满 ￥{{ coupon.thresholdAmount }} 可用，库存 {{ coupon.stock }}</p>
+          <strong>¥{{ coupon.discountAmount }}</strong>
+          <p class="muted">满 ¥{{ coupon.thresholdAmount }} 可用，库存 {{ coupon.stock }}</p>
           <button class="accent-button" :disabled="coupon.claimed" @click="claim(coupon.id)">
             {{ coupon.claimed ? '已领取' : '领取' }}
           </button>
@@ -55,7 +67,7 @@
             <span class="product-category">秒杀库存 {{ event.stock }}</span>
             <h3>{{ event.productName }}</h3>
             <div class="product-meta">
-              <strong>￥{{ event.seckillPrice }}</strong>
+              <strong>¥{{ event.seckillPrice }}</strong>
               <span>已抢 {{ event.sold }}</span>
             </div>
             <button class="accent-button" :disabled="event.stock === 0" @click="buySeckill(event.id)">立即抢购</button>
@@ -65,45 +77,59 @@
     </section>
 
     <section class="section-card">
-      <div class="section-head"><h2>收藏与消息</h2></div>
+      <div class="section-head"><h2>收藏、积分与消息</h2></div>
       <div class="dual-grid">
         <div class="stack-list">
+          <h3>收藏商品</h3>
           <article v-for="favorite in favorites" :key="favorite.id" class="row-card">
             <img :src="favorite.imageUrl" :alt="favorite.productName" class="mini-image" />
             <div class="row-main">
               <strong>{{ favorite.productName }}</strong>
-              <span>￥{{ favorite.price }}</span>
+              <span>¥{{ favorite.price }}</span>
             </div>
           </article>
           <p v-if="!favorites.length" class="muted">暂无收藏商品。</p>
         </div>
         <div class="stack-list">
-          <article v-for="message in messages" :key="message.id" class="row-card">
+          <h3>积分流水</h3>
+          <article v-for="record in pointRecords" :key="record.id" class="row-card">
             <div class="row-main">
-              <strong>{{ message.title }}</strong>
-              <span>{{ message.content }}</span>
+              <strong>{{ record.type }} {{ record.points }}</strong>
+              <span>{{ record.description }}</span>
             </div>
-            <button v-if="!message.readFlag" class="ghost-button" @click="markRead(message.id)">已读</button>
           </article>
         </div>
+      </div>
+      <div class="stack-list">
+        <h3>站内消息</h3>
+        <article v-for="message in messages" :key="message.id" class="row-card">
+          <div class="row-main">
+            <strong>{{ message.title }}</strong>
+            <span>{{ message.content }}</span>
+          </div>
+          <button v-if="!message.readFlag" class="ghost-button" @click="markRead(message.id)">已读</button>
+        </article>
       </div>
     </section>
   </section>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import {
   claimCoupon,
+  deleteAddress,
   getAddresses,
   getCoupons,
   getFavorites,
   getMemberMessages,
   getMemberProfile,
+  getPointRecords,
   getSeckillEvents,
   purchaseSeckill,
   readMessage,
-  saveAddress
+  saveAddress,
+  updateAddress
 } from '../api/mall'
 
 const profile = ref(null)
@@ -111,11 +137,30 @@ const addresses = ref([])
 const coupons = ref([])
 const favorites = ref([])
 const messages = ref([])
+const pointRecords = ref([])
 const seckillEvents = ref([])
+const addressForm = reactive({
+  id: null,
+  receiver: '',
+  phone: '',
+  region: '',
+  detail: '',
+  defaultAddress: false
+})
+
+function resetAddress() {
+  Object.assign(addressForm, { id: null, receiver: '', phone: '', region: '', detail: '', defaultAddress: false })
+}
 
 async function loadAll() {
-  const [profileRes, addressRes, couponRes, favoriteRes, messageRes, seckillRes] = await Promise.all([
-    getMemberProfile(), getAddresses(), getCoupons(), getFavorites(), getMemberMessages(), getSeckillEvents()
+  const [profileRes, addressRes, couponRes, favoriteRes, messageRes, seckillRes, pointRes] = await Promise.all([
+    getMemberProfile(),
+    getAddresses(),
+    getCoupons(),
+    getFavorites(),
+    getMemberMessages(),
+    getSeckillEvents(),
+    getPointRecords()
   ])
   profile.value = profileRes.data
   addresses.value = addressRes.data
@@ -123,16 +168,30 @@ async function loadAll() {
   favorites.value = favoriteRes.data
   messages.value = messageRes.data
   seckillEvents.value = seckillRes.data
+  pointRecords.value = pointRes.data
 }
 
-async function saveDemoAddress() {
-  await saveAddress({
-    receiver: '张三',
-    phone: '13800000000',
-    region: '上海市浦东新区',
-    detail: '示例路 1001 号 8 栋 1801',
-    defaultAddress: true
-  })
+async function submitAddress() {
+  const payload = {
+    receiver: addressForm.receiver,
+    phone: addressForm.phone,
+    region: addressForm.region,
+    detail: addressForm.detail,
+    defaultAddress: addressForm.defaultAddress
+  }
+  if (addressForm.id) await updateAddress(addressForm.id, payload)
+  else await saveAddress(payload)
+  resetAddress()
+  await loadAll()
+}
+
+function editAddress(address) {
+  Object.assign(addressForm, address)
+}
+
+async function removeAddress(id) {
+  if (!window.confirm('确定删除该地址吗？')) return
+  await deleteAddress(id)
   await loadAll()
 }
 

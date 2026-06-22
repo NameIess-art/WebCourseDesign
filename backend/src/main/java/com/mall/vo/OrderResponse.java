@@ -9,6 +9,12 @@ public record OrderResponse(
         String orderNo,
         String status,
         BigDecimal totalAmount,
+        BigDecimal originalAmount,
+        BigDecimal discountAmount,
+        Integer pointsUsed,
+        BigDecimal pointsDiscountAmount,
+        String paymentChannel,
+        String auditStatus,
         String shippingAddress,
         LocalDateTime createdAt,
         List<OrderItemResponse> items

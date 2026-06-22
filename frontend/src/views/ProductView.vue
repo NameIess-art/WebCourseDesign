@@ -12,10 +12,18 @@
         <span class="tag-chip">{{ product.promotionTag || '活动商品' }}</span>
         <span class="tag-chip">评分 {{ product.rating || '4.80' }}</span>
       </div>
-      <div class="detail-price">￥{{ product.price }}</div>
+      <div v-if="product.skus?.length" class="stack-list">
+        <label>选择 SKU</label>
+        <select v-model="selectedSkuId">
+          <option v-for="sku in product.skus" :key="sku.id" :value="sku.id">
+            {{ sku.specName }} · ¥{{ sku.price }} · 库存 {{ sku.stock }}
+          </option>
+        </select>
+      </div>
+      <div class="detail-price">¥{{ selectedSku?.price || product.price }}</div>
       <div class="quantity-row">
-        <label>购买数量（库存 {{ product.stock }}）</label>
-        <input v-model.number="quantity" type="number" min="1" :max="product.stock" />
+        <label>购买数量（库存 {{ selectedSku?.stock || product.stock }}）</label>
+        <input v-model.number="quantity" type="number" min="1" :max="selectedSku?.stock || product.stock" />
       </div>
       <div class="row-actions">
         <button class="accent-button" :disabled="product.stock === 0" @click="add">
@@ -23,6 +31,16 @@
         </button>
         <button class="ghost-button" @click="favorite">收藏</button>
       </div>
+    </div>
+  </section>
+
+  <section v-if="product?.detailBlocks?.length" class="section-card">
+    <div class="section-head"><h2>图文详情</h2></div>
+    <div class="stack-list">
+      <article v-for="block in product.detailBlocks" :key="block.id" class="notice-box">
+        <strong>{{ block.blockType }}</strong>
+        <span>{{ block.content }}</span>
+      </article>
     </div>
   </section>
 
@@ -53,7 +71,7 @@
         <article v-for="question in questions" :key="question.id" class="row-card">
           <div class="row-main">
             <strong>{{ question.question }}</strong>
-            <span>{{ question.answer }}</span>
+            <span>{{ question.answer || '商家暂未回复' }}</span>
           </div>
         </article>
       </div>
@@ -62,7 +80,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   addCart,
@@ -80,8 +98,14 @@ const product = ref(null)
 const reviews = ref([])
 const questions = ref([])
 const quantity = ref(1)
+const selectedSkuId = ref(null)
 const questionText = ref('')
 const reviewForm = reactive({ rating: 5, content: '' })
+const selectedSku = computed(() => product.value?.skus?.find(item => item.id === selectedSkuId.value))
+
+watch(product, (value) => {
+  selectedSkuId.value = value?.skus?.[0]?.id || null
+})
 
 async function loadProduct() {
   const [productRes, reviewRes, questionRes] = await Promise.all([
@@ -99,7 +123,8 @@ async function add() {
     window.alert('请先登录。')
     return
   }
-  if (quantity.value < 1 || quantity.value > product.value.stock) {
+  const stock = selectedSku.value?.stock || product.value.stock
+  if (quantity.value < 1 || quantity.value > stock) {
     window.alert('请输入有效的购买数量。')
     return
   }

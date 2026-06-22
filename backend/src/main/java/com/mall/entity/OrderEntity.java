@@ -42,6 +42,18 @@ public class OrderEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal originalAmount = BigDecimal.ZERO;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column
+    private Integer pointsUsed = 0;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal pointsDiscountAmount = BigDecimal.ZERO;
+
     @Column(nullable = false, length = 255)
     private String shippingAddress;
 
@@ -51,6 +63,21 @@ public class OrderEntity {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Column
+    private LocalDateTime paidAt;
+
+    @Column(length = 40)
+    private String paymentChannel;
+
+    @Column(length = 30)
+    private String auditStatus = "PENDING";
+
+    @Column(length = 500)
+    private String merchantRemark;
+
+    @Column(length = 80)
+    private String idempotencyKey;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<OrderItem> items = new ArrayList<>();

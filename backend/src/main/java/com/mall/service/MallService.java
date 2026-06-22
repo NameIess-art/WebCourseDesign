@@ -3,27 +3,40 @@ package com.mall.service;
 import com.mall.dto.CartItemRequest;
 import com.mall.dto.CheckoutRequest;
 import com.mall.entity.CartItem;
+import com.mall.entity.IdempotentRecord;
 import com.mall.entity.OrderEntity;
 import com.mall.entity.OrderItem;
+import com.mall.entity.PointRecord;
 import com.mall.entity.Product;
 import com.mall.entity.UserAccount;
+import com.mall.entity.UserCoupon;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
 import com.mall.repository.CartItemRepository;
 import com.mall.repository.CategoryRepository;
+import com.mall.repository.IdempotentRecordRepository;
 import com.mall.repository.OrderRepository;
+import com.mall.repository.PointRecordRepository;
+import com.mall.repository.ProductDetailBlockRepository;
 import com.mall.repository.ProductRepository;
+import com.mall.repository.ProductSkuRepository;
+import com.mall.repository.UserCouponRepository;
 import com.mall.vo.CartItemResponse;
 import com.mall.vo.CartResponse;
 import com.mall.vo.CategoryResponse;
 import com.mall.vo.OrderItemResponse;
 import com.mall.vo.OrderResponse;
+import com.mall.vo.ProductDetailBlockResponse;
 import com.mall.vo.ProductResponse;
+import com.mall.vo.ProductSkuResponse;
+import com.mall.vo.RecommendationResponse;
+import com.mall.vo.SearchSuggestResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -37,6 +50,11 @@ public class MallService {
     private final ProductRepository productRepository;
     private final CartItemRepository cartItemRepository;
     private final OrderRepository orderRepository;
+    private final UserCouponRepository userCouponRepository;
+    private final ProductSkuRepository productSkuRepository;
+    private final ProductDetailBlockRepository productDetailBlockRepository;
+    private final PointRecordRepository pointRecordRepository;
+    private final IdempotentRecordRepository idempotentRecordRepository;
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> categories() {
@@ -60,6 +78,42 @@ public class MallService {
             products = productRepository.findByActiveTrueOrderByIdDesc();
         }
         return products.stream().map(this::toProductResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SearchSuggestResponse suggest(String keyword) {
+        String value = keyword == null ? "" : keyword.trim();
+        List<String> productNames = (value.isBlank()
+                ? productRepository.findByActiveTrueOrderByIdDesc()
+                : productRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(value))
+                .stream()
+                .limit(8)
+                .map(Product::getName)
+                .toList();
+        List<String> categories = categoryRepository.findAllByOrderBySortOrderAscIdAsc().stream()
+                .filter(category -> value.isBlank()
+                        || category.getName().toLowerCase().contains(value.toLowerCase()))
+                .map(category -> category.getName())
+                .toList();
+        return new SearchSuggestResponse(productNames, categories);
+    }
+
+    @Transactional(readOnly = true)
+    public RecommendationResponse recommendations() {
+        List<ProductResponse> all = productRepository.findByActiveTrueOrderByIdDesc().stream()
+                .map(this::toProductResponse)
+                .toList();
+        List<ProductResponse> hot = all.stream()
+                .sorted(Comparator.comparing(ProductResponse::sales,
+                        Comparator.nullsLast(Integer::compareTo)).reversed())
+                .limit(4)
+                .toList();
+        List<ProductResponse> latest = all.stream().limit(4).toList();
+        List<ProductResponse> activity = all.stream()
+                .filter(item -> item.promotionTag() != null && !item.promotionTag().isBlank())
+                .limit(4)
+                .toList();
+        return new RecommendationResponse(hot, latest, activity);
     }
 
     @Transactional(readOnly = true)
@@ -146,6 +200,15 @@ public class MallService {
 
     @Transactional
     public OrderResponse checkout(UserAccount user, CheckoutRequest request) {
+        if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()
+                && idempotentRecordRepository.existsByIdemKey(request.idempotencyKey())) {
+            return orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+                    .filter(order -> request.idempotencyKey().equals(order.getIdempotencyKey()))
+                    .findFirst()
+                    .map(this::toOrderResponse)
+                    .orElseThrow(() -> new BusinessException("Duplicate checkout request"));
+        }
+
         List<CartItem> cartItems = cartItemRepository.findByUserId(user.getId());
         if (cartItems.isEmpty()) {
             throw new BusinessException("Cart is empty");
@@ -158,6 +221,7 @@ public class MallService {
         order.setStatus(OrderStatus.PENDING_PAYMENT);
         order.setCreatedAt(LocalDateTime.now());
         order.setTotalAmount(BigDecimal.ZERO);
+        order.setIdempotencyKey(request.idempotencyKey());
 
         BigDecimal total = BigDecimal.ZERO;
         for (CartItem cartItem : cartItems) {
@@ -176,8 +240,53 @@ public class MallService {
             total = total.add(product.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
         }
 
-        order.setTotalAmount(total);
+        BigDecimal discount = BigDecimal.ZERO;
+        if (request.couponId() != null) {
+            UserCoupon userCoupon = userCouponRepository.findByUserIdOrderByClaimedAtDesc(user.getId()).stream()
+                    .filter(item -> item.getCoupon().getId().equals(request.couponId()))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException("Coupon not claimed"));
+            if (Boolean.TRUE.equals(userCoupon.getUsed())) {
+                throw new BusinessException("Coupon already used");
+            }
+            if (total.compareTo(userCoupon.getCoupon().getThresholdAmount()) >= 0) {
+                discount = userCoupon.getCoupon().getDiscountAmount();
+                userCoupon.setUsed(true);
+            }
+        }
+
+        int pointsUsed = request.pointsUsed() == null ? 0 : Math.max(0, request.pointsUsed());
+        int availablePoints = user.getPoints() == null ? 0 : user.getPoints();
+        if (pointsUsed > availablePoints) {
+            throw new BusinessException("Not enough member points");
+        }
+        BigDecimal pointsDiscount = BigDecimal.valueOf(pointsUsed)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.DOWN);
+        BigDecimal payableBeforeFloor = total.subtract(discount).subtract(pointsDiscount);
+        if (payableBeforeFloor.compareTo(BigDecimal.ZERO) < 0) {
+            pointsDiscount = total.subtract(discount).max(BigDecimal.ZERO);
+        }
+        if (pointsUsed > 0) {
+            user.setPoints(availablePoints - pointsUsed);
+            pointRecordRepository.save(pointRecord(user, -pointsUsed, "USE", "Order points deduction"));
+        }
+
+        order.setOriginalAmount(total);
+        order.setDiscountAmount(discount);
+        order.setPointsUsed(pointsUsed);
+        order.setPointsDiscountAmount(pointsDiscount);
+        order.setTotalAmount(total.subtract(discount).subtract(pointsDiscount).max(BigDecimal.ZERO));
         OrderEntity saved = orderRepository.save(order);
+
+        if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
+            IdempotentRecord record = new IdempotentRecord();
+            record.setIdemKey(request.idempotencyKey());
+            record.setBizType("ORDER_CHECKOUT");
+            record.setBizResult(saved.getOrderNo());
+            record.setCreatedAt(LocalDateTime.now());
+            idempotentRecordRepository.save(record);
+        }
+
         cartItemRepository.deleteByUserId(user.getId());
         return toOrderResponse(saved);
     }
@@ -196,6 +305,11 @@ public class MallService {
             throw new BusinessException("Order cannot be paid in its current state");
         }
         order.setStatus(OrderStatus.PAID);
+        order.setPaidAt(LocalDateTime.now());
+        order.setPaymentChannel("BALANCE");
+        int earned = order.getTotalAmount().intValue();
+        user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + earned);
+        pointRecordRepository.save(pointRecord(user, earned, "EARN", "Order payment reward"));
         return toOrderResponse(orderRepository.save(order));
     }
 
@@ -250,6 +364,14 @@ public class MallService {
                 product.getFavoriteCount(),
                 product.getQuestionCount(),
                 product.getRating(),
+                productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream()
+                        .map(sku -> new ProductSkuResponse(sku.getId(), sku.getSkuCode(), sku.getSpecName(),
+                                sku.getPrice(), sku.getStock(), sku.getActive()))
+                        .toList(),
+                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId()).stream()
+                        .map(block -> new ProductDetailBlockResponse(block.getId(), block.getBlockType(),
+                                block.getContent(), block.getSortOrder()))
+                        .toList(),
                 product.getCategory().getId(),
                 product.getCategory().getName()
         );
@@ -261,6 +383,12 @@ public class MallService {
                 order.getOrderNo(),
                 order.getStatus().name(),
                 order.getTotalAmount(),
+                order.getOriginalAmount() == null ? BigDecimal.ZERO : order.getOriginalAmount(),
+                order.getDiscountAmount() == null ? BigDecimal.ZERO : order.getDiscountAmount(),
+                order.getPointsUsed() == null ? 0 : order.getPointsUsed(),
+                order.getPointsDiscountAmount() == null ? BigDecimal.ZERO : order.getPointsDiscountAmount(),
+                order.getPaymentChannel(),
+                order.getAuditStatus() == null ? "PENDING" : order.getAuditStatus(),
                 order.getShippingAddress(),
                 order.getCreatedAt(),
                 order.getItems().stream()
@@ -273,5 +401,15 @@ public class MallService {
                         ))
                         .toList()
         );
+    }
+
+    private PointRecord pointRecord(UserAccount user, Integer points, String type, String description) {
+        PointRecord record = new PointRecord();
+        record.setUser(user);
+        record.setPoints(points);
+        record.setType(type);
+        record.setDescription(description);
+        record.setCreatedAt(LocalDateTime.now());
+        return record;
     }
 }

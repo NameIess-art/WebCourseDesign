@@ -10,6 +10,8 @@ import com.mall.vo.CartResponse;
 import com.mall.vo.CategoryResponse;
 import com.mall.vo.OrderResponse;
 import com.mall.vo.ProductResponse;
+import com.mall.vo.RecommendationResponse;
+import com.mall.vo.SearchSuggestResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -47,6 +49,16 @@ public class MallController {
     @GetMapping("/products/{id}")
     public ApiResponse<ProductResponse> product(@PathVariable Long id) {
         return ApiResponse.success(mallService.product(id));
+    }
+
+    @GetMapping("/search/suggest")
+    public ApiResponse<SearchSuggestResponse> suggest(@RequestParam(required = false) String keyword) {
+        return ApiResponse.success(mallService.suggest(keyword));
+    }
+
+    @GetMapping("/recommendations")
+    public ApiResponse<RecommendationResponse> recommendations() {
+        return ApiResponse.success(mallService.recommendations());
     }
 
     @GetMapping("/cart")

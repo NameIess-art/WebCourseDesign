@@ -1,6 +1,6 @@
 #FileLock
-#Mon Jun 22 15:22:01 CST 2026
+#Mon Jun 22 18:23:51 CST 2026
 hostName=Nameless
-id=19eee35151f7fa80b70db6a272c81e7828ab510564c
+id=19eeedb82b5194c7793e71bb4e378f768b23d9f4981
 method=file
-server=192.168.5.5\:9329
+server=192.168.5.5\:7232

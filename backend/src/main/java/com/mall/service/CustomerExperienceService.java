@@ -73,16 +73,23 @@ public class CustomerExperienceService {
     @Transactional
     public AddressResponse saveAddress(UserAccount user, AddressRequest request) {
         if (Boolean.TRUE.equals(request.defaultAddress())) {
-            addressBookRepository.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId())
-                    .forEach(address -> address.setDefaultAddress(false));
+            clearDefaultAddress(user);
         }
         AddressBook address = new AddressBook();
         address.setUser(user);
-        address.setReceiver(request.receiver());
-        address.setPhone(request.phone());
-        address.setRegion(request.region());
-        address.setDetail(request.detail());
-        address.setDefaultAddress(request.defaultAddress());
+        applyAddress(address, request);
+        return toAddressResponse(addressBookRepository.save(address));
+    }
+
+    @Transactional
+    public AddressResponse updateAddress(UserAccount user, Long id, AddressRequest request) {
+        AddressBook address = addressBookRepository.findById(id)
+                .filter(item -> item.getUser().getId().equals(user.getId()))
+                .orElseThrow(() -> new BusinessException("Address not found"));
+        if (Boolean.TRUE.equals(request.defaultAddress())) {
+            clearDefaultAddress(user);
+        }
+        applyAddress(address, request);
         return toAddressResponse(addressBookRepository.save(address));
     }
 
@@ -164,7 +171,8 @@ public class CustomerExperienceService {
     public void unfavorite(UserAccount user, Long productId) {
         favoriteProductRepository.findByUserIdAndProductId(user.getId(), productId).ifPresent(favorite -> {
             Product product = favorite.getProduct();
-            product.setFavoriteCount(Math.max(0, (product.getFavoriteCount() == null ? 0 : product.getFavoriteCount()) - 1));
+            product.setFavoriteCount(Math.max(0,
+                    (product.getFavoriteCount() == null ? 0 : product.getFavoriteCount()) - 1));
             favoriteProductRepository.delete(favorite);
         });
     }
@@ -222,17 +230,16 @@ public class CustomerExperienceService {
 
     @Transactional(readOnly = true)
     public MemberProfileResponse profile(UserAccount user) {
-        List<OrderEntity> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
-        long completed = orders.stream().filter(order -> order.getStatus() == OrderStatus.COMPLETED).count();
-        int points = (int) (orders.size() * 20 + completed * 80);
-        String level = points >= 500 ? "黑金会员" : points >= 200 ? "黄金会员" : "普通会员";
+        int points = user.getPoints() == null ? 0 : user.getPoints();
+        String level = user.getMemberLevel() == null || user.getMemberLevel().isBlank()
+                ? levelByPoints(points) : user.getMemberLevel();
         return new MemberProfileResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getDisplayName(),
                 level,
                 points,
-                "积分抵扣、会员价、生日券、专属客服",
+                "Points deduction, member price, birthday coupon, priority after-sale",
                 memberMessageRepository.countByUserIdAndReadFlagFalse(user.getId())
         );
     }
@@ -255,15 +262,16 @@ public class CustomerExperienceService {
     @Transactional(readOnly = true)
     public LogisticsResponse logistics(UserAccount user, Long orderId) {
         OrderEntity order = getUserOrder(user, orderId);
-        String trackingNo = order.getStatus() == OrderStatus.PENDING_PAYMENT ? "待支付后生成" : "YT" + order.getOrderNo().substring(4);
+        String trackingNo = order.getStatus() == OrderStatus.PENDING_PAYMENT
+                ? "WAIT_PAY" : "YT" + order.getOrderNo().substring(Math.max(0, order.getOrderNo().length() - 8));
         List<String> traces = switch (order.getStatus()) {
-            case PENDING_PAYMENT -> List.of("订单已提交，等待支付");
-            case PAID -> List.of("支付成功，商家正在审核并拣货");
-            case SHIPPED -> List.of("商家已发货", "包裹已到达分拨中心", "预计次日派送");
-            case COMPLETED -> List.of("商家已发货", "快递员派送中", "用户已确认收货");
-            case CANCELLED -> List.of("订单已取消，物流关闭");
+            case PENDING_PAYMENT -> List.of("Order submitted, waiting for payment");
+            case PAID -> List.of("Payment successful", "Merchant is reviewing and preparing shipment");
+            case SHIPPED -> List.of("Merchant shipped", "Parcel arrived at sorting center", "Estimated delivery tomorrow");
+            case COMPLETED -> List.of("Merchant shipped", "Courier delivered", "User confirmed receipt");
+            case CANCELLED -> List.of("Order cancelled, logistics closed");
         };
-        return new LogisticsResponse(order.getId(), order.getOrderNo(), "悦通快递", trackingNo, traces);
+        return new LogisticsResponse(order.getId(), order.getOrderNo(), "YTO Express", trackingNo, traces);
     }
 
     @Transactional
@@ -287,6 +295,29 @@ public class CustomerExperienceService {
         return afterSaleRecordRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                 .map(this::toAfterSaleResponse)
                 .toList();
+    }
+
+    private void clearDefaultAddress(UserAccount user) {
+        addressBookRepository.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId())
+                .forEach(address -> address.setDefaultAddress(false));
+    }
+
+    private void applyAddress(AddressBook address, AddressRequest request) {
+        address.setReceiver(request.receiver());
+        address.setPhone(request.phone());
+        address.setRegion(request.region());
+        address.setDetail(request.detail());
+        address.setDefaultAddress(Boolean.TRUE.equals(request.defaultAddress()));
+    }
+
+    private String levelByPoints(int points) {
+        if (points >= 500) {
+            return "PLATINUM";
+        }
+        if (points >= 200) {
+            return "GOLD";
+        }
+        return "BASIC";
     }
 
     private OrderEntity getUserOrder(UserAccount user, Long orderId) {

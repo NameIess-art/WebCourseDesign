@@ -31,7 +31,7 @@ router.beforeEach((to) => {
   if (to.meta.auth && !token) {
     return '/login'
   }
-  if (to.meta.admin && user?.role !== 'ADMIN') {
+  if (to.meta.admin && !['ADMIN', 'MERCHANT'].includes(user?.role)) {
     return '/'
   }
   return true

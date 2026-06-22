@@ -6,7 +6,9 @@
       <button class="nav-link" @click="$router.push('/cart')">购物车</button>
       <button class="nav-link" @click="$router.push('/orders')">我的订单</button>
       <button class="nav-link" @click="$router.push('/features')">能力中心</button>
-      <button v-if="user?.role === 'ADMIN'" class="nav-link" @click="$router.push('/admin')">管理后台</button>
+      <button v-if="['ADMIN', 'MERCHANT'].includes(user?.role)" class="nav-link" @click="$router.push('/admin')">
+        商家后台
+      </button>
     </nav>
     <div class="user-area">
       <template v-if="user">
