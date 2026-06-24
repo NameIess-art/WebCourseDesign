@@ -6,6 +6,7 @@ import com.mall.dto.ProductQuestionRequest;
 import com.mall.dto.ProductReviewRequest;
 import com.mall.entity.UserAccount;
 import com.mall.service.CustomerExperienceService;
+import com.mall.vo.PageResponse;
 import com.mall.vo.AddressResponse;
 import com.mall.vo.AfterSaleResponse;
 import com.mall.vo.ApiResponse;
@@ -39,8 +40,8 @@ public class CustomerExperienceController {
     private final CustomerExperienceService customerExperienceService;
 
     @GetMapping("/addresses")
-    public ApiResponse<List<AddressResponse>> addresses(@AuthenticationPrincipal UserAccount user) {
-        return ApiResponse.success(customerExperienceService.addresses(user));
+    public ApiResponse<PageResponse<AddressResponse>> addresses(@AuthenticationPrincipal UserAccount user, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(customerExperienceService.addresses(user, page, size));
     }
 
     @PostMapping("/addresses")
@@ -63,8 +64,8 @@ public class CustomerExperienceController {
     }
 
     @GetMapping("/coupons")
-    public ApiResponse<List<CouponResponse>> coupons(@AuthenticationPrincipal UserAccount user) {
-        return ApiResponse.success(customerExperienceService.coupons(user));
+    public ApiResponse<PageResponse<CouponResponse>> coupons(@AuthenticationPrincipal UserAccount user, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(customerExperienceService.coupons(user, page, size));
     }
 
     @PostMapping("/coupons/{id}/claim")
@@ -73,8 +74,8 @@ public class CustomerExperienceController {
     }
 
     @GetMapping("/favorites")
-    public ApiResponse<List<FavoriteResponse>> favorites(@AuthenticationPrincipal UserAccount user) {
-        return ApiResponse.success(customerExperienceService.favorites(user));
+    public ApiResponse<PageResponse<FavoriteResponse>> favorites(@AuthenticationPrincipal UserAccount user, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(customerExperienceService.favorites(user, page, size));
     }
 
     @PostMapping("/favorites/{productId}")
@@ -90,8 +91,8 @@ public class CustomerExperienceController {
     }
 
     @GetMapping("/products/{productId}/reviews")
-    public ApiResponse<List<ProductReviewResponse>> reviews(@PathVariable Long productId) {
-        return ApiResponse.success(customerExperienceService.reviews(productId));
+    public ApiResponse<PageResponse<ProductReviewResponse>> reviews(@PathVariable Long productId, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(customerExperienceService.reviews(productId, page, size));
     }
 
     @PostMapping("/products/{productId}/reviews")
@@ -102,8 +103,8 @@ public class CustomerExperienceController {
     }
 
     @GetMapping("/products/{productId}/questions")
-    public ApiResponse<List<ProductQuestionResponse>> questions(@PathVariable Long productId) {
-        return ApiResponse.success(customerExperienceService.questions(productId));
+    public ApiResponse<PageResponse<ProductQuestionResponse>> questions(@PathVariable Long productId, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(customerExperienceService.questions(productId, page, size));
     }
 
     @PostMapping("/products/{productId}/questions")
@@ -119,8 +120,8 @@ public class CustomerExperienceController {
     }
 
     @GetMapping("/member/messages")
-    public ApiResponse<List<MemberMessageResponse>> messages(@AuthenticationPrincipal UserAccount user) {
-        return ApiResponse.success(customerExperienceService.messages(user));
+    public ApiResponse<PageResponse<MemberMessageResponse>> messages(@AuthenticationPrincipal UserAccount user, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(customerExperienceService.messages(user, page, size));
     }
 
     @PatchMapping("/member/messages/{id}/read")
@@ -143,7 +144,7 @@ public class CustomerExperienceController {
     }
 
     @GetMapping("/after-sales")
-    public ApiResponse<List<AfterSaleResponse>> afterSales(@AuthenticationPrincipal UserAccount user) {
-        return ApiResponse.success(customerExperienceService.afterSales(user));
+    public ApiResponse<PageResponse<AfterSaleResponse>> afterSales(@AuthenticationPrincipal UserAccount user, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page, @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(customerExperienceService.afterSales(user, page, size));
     }
 }

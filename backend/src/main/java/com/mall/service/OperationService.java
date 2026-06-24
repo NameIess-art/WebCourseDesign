@@ -40,6 +40,9 @@ import com.mall.vo.ReportResponse;
 import com.mall.vo.SimpleItemResponse;
 import com.mall.vo.SystemConfigResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import com.mall.vo.PageResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,17 +87,15 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<MarketingActivityResponse> activities() {
-        return marketingActivityRepository.findAllByOrderByStartAtDesc().stream()
-                .map(this::toActivityResponse)
-                .toList();
+    public PageResponse<MarketingActivityResponse> activities(int page, int size) {
+        Page<MarketingActivityResponse> result = marketingActivityRepository.findAllByOrderByStartAtDesc(PageRequest.of(page, size)).map(this::toActivityResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional(readOnly = true)
-    public List<MarketingActivityResponse> publicActivities() {
-        return marketingActivityRepository.findByStatusIgnoreCaseOrderByStartAtDesc("APPROVED").stream()
-                .map(this::toActivityResponse)
-                .toList();
+    public PageResponse<MarketingActivityResponse> publicActivities(int page, int size) {
+        Page<MarketingActivityResponse> result = marketingActivityRepository.findByStatusIgnoreCaseOrderByStartAtDesc("APPROVED", PageRequest.of(page, size)).map(this::toActivityResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -123,10 +124,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SystemConfigResponse> configs() {
-        return systemConfigItemRepository.findAll().stream()
-                .map(this::toConfigResponse)
-                .toList();
+    public PageResponse<SystemConfigResponse> configs(int page, int size) {
+        Page<SystemConfigResponse> result = systemConfigItemRepository.findAll(PageRequest.of(page, size)).map(this::toConfigResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -144,10 +144,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<PlatformRiskResponse> risks() {
-        return platformRiskItemRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(this::toRiskResponse)
-                .toList();
+    public PageResponse<PlatformRiskResponse> risks(int page, int size) {
+        Page<PlatformRiskResponse> result = platformRiskItemRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size)).map(this::toRiskResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -187,11 +186,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> dictionaries() {
-        return dictionaryItemRepository.findAll().stream()
-                .map(item -> new SimpleItemResponse(item.getId(), item.getDictKey(), item.getDictType(),
-                        item.getDictValue(), "ACTIVE"))
-                .toList();
+    public PageResponse<SimpleItemResponse> dictionaries(int page, int size) {
+        Page<SimpleItemResponse> result = dictionaryItemRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getDictKey(), item.getDictType(), item.getDictValue(), "ACTIVE"));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -211,11 +208,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> announcements() {
-        return announcementRepository.findAll().stream()
-                .map(item -> new SimpleItemResponse(item.getId(), item.getTitle(),
-                        item.getPopup() ? "POPUP" : "NOTICE", item.getContent(), "ACTIVE"))
-                .toList();
+    public PageResponse<SimpleItemResponse> announcements(int page, int size) {
+        Page<SimpleItemResponse> result = announcementRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getTitle(), item.getPopup() ? "POPUP" : "NOTICE", item.getContent(), "ACTIVE"));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -236,11 +231,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> merchants() {
-        return merchantRepository.findAll().stream()
-                .map(item -> new SimpleItemResponse(item.getId(), item.getName(), "MERCHANT",
-                        item.getContactPhone(), item.getStatus()))
-                .toList();
+    public PageResponse<SimpleItemResponse> merchants(int page, int size) {
+        Page<SimpleItemResponse> result = merchantRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), "MERCHANT", item.getContactPhone(), item.getStatus()));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -279,11 +272,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> roles() {
-        return roleDefinitionRepository.findAll().stream()
-                .map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getCode(),
-                        "menus=" + item.getMenuPermissions() + "; buttons=" + item.getButtonPermissions(), "ACTIVE"))
-                .toList();
+    public PageResponse<SimpleItemResponse> roles(int page, int size) {
+        Page<SimpleItemResponse> result = roleDefinitionRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getCode(), "menus=" + item.getMenuPermissions() + "; buttons=" + item.getButtonPermissions(), "ACTIVE"));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -298,11 +289,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> permissions() {
-        return permissionItemRepository.findAll().stream()
-                .map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getPermissionType(),
-                        item.getCode(), "ACTIVE"))
-                .toList();
+    public PageResponse<SimpleItemResponse> permissions(int page, int size) {
+        Page<SimpleItemResponse> result = permissionItemRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getPermissionType(), item.getCode(), "ACTIVE"));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -316,11 +305,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> contentAudits() {
-        return contentAuditItemRepository.findAll().stream()
-                .map(item -> new SimpleItemResponse(item.getId(), item.getTarget(), item.getContentType(),
-                        item.getContent(), item.getStatus()))
-                .toList();
+    public PageResponse<SimpleItemResponse> contentAudits(int page, int size) {
+        Page<SimpleItemResponse> result = contentAuditItemRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getTarget(), item.getContentType(), item.getContent(), item.getStatus()));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -347,8 +334,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> promotionRules() {
-        return promotionRuleRepository.findAll().stream().map(this::toPromotion).toList();
+    public PageResponse<SimpleItemResponse> promotionRules(int page, int size) {
+        Page<SimpleItemResponse> result = promotionRuleRepository.findAll(PageRequest.of(page, size)).map(this::toPromotion);
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -365,10 +353,9 @@ public class OperationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> marketingFlows() {
-        return marketingFlowRecordRepository.findAll().stream()
-                .map(this::toFlow)
-                .toList();
+    public PageResponse<SimpleItemResponse> marketingFlows(int page, int size) {
+        Page<SimpleItemResponse> result = marketingFlowRecordRepository.findAll(PageRequest.of(page, size)).map(this::toFlow);
+        return PageResponse.of(result);
     }
 
     @Transactional

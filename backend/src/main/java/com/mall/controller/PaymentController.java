@@ -5,6 +5,7 @@ import com.mall.dto.PaymentRequest;
 import com.mall.entity.UserAccount;
 import com.mall.service.PaymentService;
 import com.mall.vo.ApiResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.PaymentResponse;
 import com.mall.vo.PointRecordResponse;
 import jakarta.validation.Valid;
@@ -44,8 +45,10 @@ public class PaymentController {
     }
 
     @GetMapping("/member/point-records")
-    public ApiResponse<List<PointRecordResponse>> pointRecords(@AuthenticationPrincipal UserAccount user) {
-        return ApiResponse.success(paymentService.pointRecords(user));
+    public ApiResponse<PageResponse<PointRecordResponse>> pointRecords(@AuthenticationPrincipal UserAccount user,
+                                                                       @RequestParam(defaultValue = "0") int page,
+                                                                       @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(paymentService.pointRecords(user, page, size));
     }
 
     @GetMapping("/member/points")

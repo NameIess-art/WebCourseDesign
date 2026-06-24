@@ -11,7 +11,7 @@
         <input v-model="keyword" placeholder="输入商品名称、促销标签或分类" @input="loadSuggest" @keyup.enter="search" />
       </label>
       <button class="accent-button" :disabled="loading" @click="search">搜索</button>
-      <div v-if="suggestions.productNames.length || suggestions.categories.length" class="tag-list">
+      <div v-if="suggestions.productNames.length || (suggestions.categories && suggestions.categories.length)" class="tag-list">
         <button v-for="item in suggestions.productNames" :key="`p-${item}`" class="tag-chip" @click="useKeyword(item)">
           {{ item }}
         </button>
@@ -25,12 +25,12 @@
   <section id="categories" class="section-card">
     <div class="section-head">
       <h2>商品分类</h2>
-      <span>共 {{ categories.length }} 个分类</span>
+      <span>共 {{ categories.content.length }} 个分类</span>
     </div>
     <div class="tag-list">
       <button class="tag-chip" :class="{ active: !categoryId }" @click="selectCategory(null)">全部</button>
       <button
-        v-for="category in categories"
+        v-for="category in categories.content"
         :key="category.id"
         class="tag-chip"
         :class="{ active: categoryId === category.id }"
@@ -97,7 +97,7 @@ import { addCart, getCategories, getProducts, getRecommendations, suggestSearch 
 import { getToken } from '../utils/auth'
 
 const router = useRouter()
-const categories = ref([])
+const categories = ref({ content: [], page: 0, totalPages: 0 })
 const products = ref([])
 const keyword = ref('')
 const categoryId = ref(null)

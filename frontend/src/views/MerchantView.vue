@@ -2,9 +2,15 @@
   <div class="admin-layout">
     <section class="admin-hero">
       <div>
-        <p class="eyebrow">Merchant Console</p>
+        <p class="eyebrow">商家中心</p>
         <h1>商家后台</h1>
         <p class="muted">处理商品上架、SKU 库存、订单履约、售后、营销工具和经营数据。</p>
+        <div v-if="user?.role === 'ADMIN'" style="margin-top: 1rem;">
+          <label for="merchant-select" class="muted" style="margin-right: 0.5rem;">当前管理商家：</label>
+          <select id="merchant-select" v-model="selectedMerchantId" @change="loadData" style="padding: 0.5rem; border-radius: 4px; border: 1px solid #e2e8f0;">
+            <option v-for="m in merchantsList.content" :key="m.id" :value="m.id">{{ m.title }}</option>
+          </select>
+        </div>
       </div>
       <button class="ghost-button" :disabled="loading" @click="loadData">刷新数据</button>
     </section>
@@ -12,7 +18,7 @@
     <div v-if="notice" class="feedback-banner" :class="notice.type">{{ notice.text }}</div>
 
     <section id="dashboard" class="module-section">
-      <div class="section-head"><div><p class="eyebrow">Dashboard</p><h2>数据看板</h2></div></div>
+      <div class="section-head"><div><p class="eyebrow">数据面板</p><h2>数据看板</h2></div></div>
       <div class="stat-grid">
         <article class="stat-card"><span>商品数</span><strong>{{ dashboard.productCount ?? 0 }}</strong></article>
         <article class="stat-card"><span>订单数</span><strong>{{ dashboard.orderCount ?? 0 }}</strong></article>
@@ -26,7 +32,7 @@
 
     <section id="products" class="module-section">
       <div class="section-head">
-        <div><p class="eyebrow">Products</p><h2>商品管理</h2></div>
+        <div><p class="eyebrow">商品管理</p><h2>商品管理</h2></div>
         <button class="ghost-button" @click="resetProduct">新建商品</button>
       </div>
       <div class="dual-grid">
@@ -81,7 +87,7 @@
         </form>
 
         <div class="stack-list">
-          <article v-for="item in products" :key="item.id" class="row-card">
+          <article v-for="item in products.content" :key="item.id" class="row-card">
             <div class="row-main">
               <strong>{{ item.name }}</strong>
               <span class="muted">¥{{ item.price }} · 库存 {{ item.stock }} · {{ item.active ? '已上架' : '已下架' }}</span>
@@ -104,16 +110,16 @@
 
     <section id="orders" class="module-section">
       <div class="section-head">
-        <div><p class="eyebrow">Orders</p><h2>订单处理</h2></div>
+        <div><p class="eyebrow">订单管理</p><h2>订单处理</h2></div>
         <button class="ghost-button" :disabled="loading" @click="createReconciliationForToday">生成今日对账</button>
       </div>
       <div class="dual-grid">
         <div class="stack-list">
-          <article v-for="order in orders" :key="order.id" class="order-card">
+          <article v-for="order in orders.content" :key="order.id" class="order-card">
             <div class="section-head">
               <div>
                 <strong>{{ order.orderNo }}</strong>
-                <p class="muted">状态 {{ order.status }} · 审核 {{ order.auditStatus || 'PENDING' }} · ¥{{ order.totalAmount }}</p>
+                <p class="muted">状态 {{ formatStatus(order.status) }} · 审核 {{ order.auditStatus || '待处理' }} · ¥{{ order.totalAmount }}</p>
               </div>
               <div class="row-actions">
                 <button class="ghost-button" @click="audit(order, true)">审核通过</button>
@@ -133,10 +139,10 @@
             <strong>售后处理</strong>
             <span class="muted">退款、退货、换货申请在这里处理，并同步站内消息给用户。</span>
           </article>
-          <article v-for="item in afterSales" :key="item.id" class="row-card">
+          <article v-for="item in afterSales.content" :key="item.id" class="row-card">
             <div class="row-main">
-              <strong>{{ item.orderNo }} · {{ item.type }}</strong>
-              <span class="muted">{{ item.reason }} · {{ item.status }}</span>
+              <strong>{{ item.orderNo }} · {{ formatStatus(item.type) }}</strong>
+              <span class="muted">{{ item.reason }} · {{ formatStatus(item.status) }}</span>
             </div>
             <div class="row-actions">
               <button class="ghost-button" @click="processSale(item, 'APPROVED')">通过</button>
@@ -148,7 +154,7 @@
     </section>
 
     <section id="marketing" class="module-section">
-      <div class="section-head"><div><p class="eyebrow">Marketing</p><h2>营销工具</h2></div></div>
+      <div class="section-head"><div><p class="eyebrow">营销中心</p><h2>营销工具</h2></div></div>
       <div class="dual-grid">
         <form class="admin-form form-panel" @submit.prevent="saveMarketing">
           <h3>限时活动 / 拼团 / 分销 / 预售 / 组合套餐</h3>
@@ -167,7 +173,7 @@
           <h3>创建秒杀</h3>
           <select v-model.number="seckillForm.productId" required>
             <option disabled :value="null">选择商品</option>
-            <option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option>
+            <option v-for="product in products.content" :key="product.id" :value="product.id">{{ product.name }}</option>
           </select>
           <input v-model.number="seckillForm.seckillPrice" type="number" min="0.01" step="0.01" placeholder="秒杀价" required />
           <input v-model.number="seckillForm.stock" type="number" min="1" placeholder="秒杀库存" required />
@@ -175,16 +181,16 @@
         </form>
       </div>
       <div class="module-grid">
-        <article v-for="activity in marketing" :key="activity.id" class="row-card">
+        <article v-for="activity in marketing.content" :key="activity.id" class="row-card">
           <div class="row-main">
-            <strong>{{ activity.title }} · {{ activity.type }}</strong>
-            <span class="muted">{{ activity.ruleText }} · {{ activity.status }}</span>
+            <strong>{{ activity.title }} · {{ formatStatus(activity.type) }}</strong>
+            <span class="muted">{{ activity.ruleText }} · {{ formatStatus(activity.status) }}</span>
           </div>
         </article>
-        <article v-for="flow in marketingFlows" :key="flow.id" class="row-card">
+        <article v-for="flow in marketingFlows.content" :key="flow.id" class="row-card">
           <div class="row-main">
-            <strong>{{ flow.title }} · {{ flow.type }}</strong>
-            <span class="muted">{{ flow.content }} · {{ flow.status }}</span>
+            <strong>{{ flow.title }} · {{ formatStatus(flow.type) }}</strong>
+            <span class="muted">{{ flow.content }} · {{ formatStatus(flow.status) }}</span>
           </div>
         </article>
       </div>
@@ -193,7 +199,10 @@
 </template>
 
 <script setup>
+import { formatStatus } from '../utils/format'
 import { onMounted, reactive, ref } from 'vue'
+import Pagination from '../components/Pagination.vue'
+import { getUser } from '../utils/auth'
 import {
   auditOrder,
   createMarketing,
@@ -208,6 +217,7 @@ import {
   getMarketing,
   getMarketingFlows,
   getReports,
+  getMerchants,
   modifyOrder,
   processAfterSale,
   shipOrder,
@@ -218,11 +228,14 @@ const loading = ref(false)
 const notice = ref(null)
 const dashboard = ref({})
 const reports = ref({})
-const products = ref([])
-const orders = ref([])
-const afterSales = ref([])
-const marketing = ref([])
-const marketingFlows = ref([])
+const products = ref({ content: [], page: 0, totalPages: 0 })
+const orders = ref({ content: [], page: 0, totalPages: 0 })
+const afterSales = ref({ content: [], page: 0, totalPages: 0 })
+const marketing = ref({ content: [], page: 0, totalPages: 0 })
+const marketingFlows = ref({ content: [], page: 0, totalPages: 0 })
+const user = ref(getUser())
+const merchantsList = ref({ content: [], page: 0, totalPages: 0 })
+const selectedMerchantId = ref(localStorage.getItem('merchantId') ? Number(localStorage.getItem('merchantId')) : null)
 const editingProductId = ref(null)
 const productPage = reactive({ page: 0, size: 20, totalPages: 0, first: true, last: true })
 
@@ -272,7 +285,7 @@ async function runAction(successText, action) {
 async function loadProducts(page = productPage.page) {
   const productRes = await getAdminProducts(page, productPage.size)
   const data = productRes.data || {}
-  products.value = data.content || []
+  products.value = data.content || { content: [], page: 0, totalPages: 0 }
   Object.assign(productPage, {
     page: data.page ?? 0,
     size: data.size ?? productPage.size,
@@ -283,21 +296,49 @@ async function loadProducts(page = productPage.page) {
 }
 
 async function loadData() {
-  const [dashboardRes, orderRes, afterSaleRes, marketingRes, flowRes, reportRes] = await Promise.all([
-    getDashboard(),
-    getAdminOrders(),
-    getAdminAfterSales(),
-    getMarketing(),
-    getMarketingFlows(),
-    getReports()
-  ])
-  await loadProducts(productPage.page)
-  dashboard.value = dashboardRes.data || {}
-  orders.value = orderRes.data?.content || []
-  afterSales.value = afterSaleRes.data || []
-  marketing.value = marketingRes.data || []
-  marketingFlows.value = flowRes.data || []
-  reports.value = reportRes.data || {}
+  if (user.value?.role === 'ADMIN') {
+    try {
+      const merchantRes = await getMerchants()
+      merchantsList.value = merchantRes.data || { content: [], page: 0, totalPages: 0 }
+      
+      // Default to first merchant if none selected
+      if (!selectedMerchantId.value && merchantsList.value.length > 0) {
+        selectedMerchantId.value = merchantsList.value[0].id
+      }
+    } catch (e) {
+      console.error("Failed to load merchants", e)
+    }
+  }
+
+  if (selectedMerchantId.value) {
+    localStorage.setItem('merchantId', selectedMerchantId.value)
+  } else {
+    localStorage.removeItem('merchantId')
+    if (user.value?.role === 'ADMIN') {
+      return // Admin must have a merchant selected to proceed
+    }
+  }
+
+  try {
+    const [dashboardRes, orderRes, afterSaleRes, marketingRes, flowRes, reportRes] = await Promise.all([
+      getDashboard(),
+      getAdminOrders(),
+      getAdminAfterSales(),
+      getMarketing(),
+      getMarketingFlows(),
+      getReports()
+    ])
+    await loadProducts(productPage.page)
+
+    dashboard.value = dashboardRes.data || {}
+    orders.value = orderRes.data?.content || []
+    afterSales.value = afterSaleRes.data || { content: [], page: 0, totalPages: 0 }
+    marketing.value = marketingRes.data || { content: [], page: 0, totalPages: 0 }
+    marketingFlows.value = flowRes.data || { content: [], page: 0, totalPages: 0 }
+    reports.value = reportRes.data || {}
+  } catch (error) {
+    notice.value = { type: 'error', text: String(error) }
+  }
 }
 
 function resetProduct() {

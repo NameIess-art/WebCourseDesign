@@ -20,14 +20,25 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Long> {
 
     Page<OrderEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
+    Page<OrderEntity> findByMerchantIdOrderByCreatedAtDesc(Long merchantId, Pageable pageable);
+
     Page<OrderEntity> findByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
 
+    Page<OrderEntity> findByMerchantIdAndStatusOrderByCreatedAtDesc(Long merchantId, OrderStatus status, Pageable pageable);
+
     long countByStatus(OrderStatus status);
+
+    long countByMerchantId(Long merchantId);
+
+    long countByMerchantIdAndStatus(Long merchantId, OrderStatus status);
 
     long countByStatusIn(List<OrderStatus> statuses);
 
     @Query("select coalesce(sum(o.totalAmount), 0) from OrderEntity o where o.status in :statuses")
     BigDecimal sumTotalAmountByStatusIn(@Param("statuses") List<OrderStatus> statuses);
+
+    @Query("select coalesce(sum(o.totalAmount), 0) from OrderEntity o where o.merchant.id = :merchantId and o.status in :statuses")
+    BigDecimal sumTotalAmountByMerchantIdAndStatusIn(@Param("merchantId") Long merchantId, @Param("statuses") List<OrderStatus> statuses);
 
     @Query("""
             select count(o)

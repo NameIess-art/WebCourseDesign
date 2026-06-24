@@ -95,13 +95,13 @@ public class AdminController {
     }
 
     @GetMapping("/reconciliation")
-    public ApiResponse<List<SimpleItemResponse>> reconciliations() {
-        return ApiResponse.success(adminService.reconciliations());
+    public ApiResponse<PageResponse<SimpleItemResponse>> reconciliations(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(adminService.reconciliations(page, size));
     }
 
     @GetMapping("/after-sales")
-    public ApiResponse<List<AfterSaleResponse>> afterSales() {
-        return ApiResponse.success(adminService.allAfterSales());
+    public ApiResponse<PageResponse<AfterSaleResponse>> afterSales(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(adminService.afterSales(page, size));
     }
 
     @PatchMapping("/after-sales/{id}/process")

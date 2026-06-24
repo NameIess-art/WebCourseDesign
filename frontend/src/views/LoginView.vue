@@ -20,6 +20,7 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
+import Pagination from '../components/Pagination.vue'
 import { useRouter } from 'vue-router'
 import { login } from '../api/mall'
 import { saveAuth } from '../utils/auth'

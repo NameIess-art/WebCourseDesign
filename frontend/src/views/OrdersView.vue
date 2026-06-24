@@ -10,14 +10,14 @@
         <strong>正在加载订单</strong>
         <span class="muted">支付、物流和售后状态正在同步。</span>
       </div>
-      <div v-else-if="orders.length" class="stack-list">
-        <article v-for="order in orders" :key="order.id" class="order-card">
+      <div v-else-if="orders.content.length" class="stack-list">
+        <article v-for="order in orders.content" :key="order.id" class="order-card">
           <div class="section-head">
             <div>
               <strong>{{ order.orderNo }}</strong>
               <p>{{ formatDate(order.createdAt) }}</p>
             </div>
-            <span class="tag-chip">{{ statusText[order.status] || order.status }}</span>
+            <span class="tag-chip">{{ statusText[formatStatus(order.status)] || formatStatus(order.status) }}</span>
           </div>
           <div class="stack-list small-gap">
             <div v-for="item in order.items" :key="item.id" class="inline-meta">
@@ -39,9 +39,9 @@
               <button class="ghost-button" @click="cancel(order.id)">取消</button>
             </div>
             <div class="row-actions">
-              <button v-if="order.status === 'SHIPPED'" class="ghost-button" @click="receive(order.id)">确认收货</button>
+              <button v-if="order.status === '已发货'" class="ghost-button" @click="receive(order.id)">确认收货</button>
               <button class="ghost-button" @click="showLogistics(order.id)">物流</button>
-              <button v-if="['PAID','SHIPPED','COMPLETED'].includes(order.status)" class="ghost-button" @click="afterSale(order.id)">售后</button>
+              <button v-if="['已支付','已发货','已完成'].includes(order.status)" class="ghost-button" @click="afterSale(order.id)">售后</button>
             </div>
           </div>
           <div v-if="logistics[order.id]" class="notice-box">
@@ -61,20 +61,22 @@
     <section class="section-card">
       <div class="section-head"><h2>售后记录</h2></div>
       <div class="stack-list">
-        <article v-for="record in afterSales" :key="record.id" class="row-card">
+        <article v-for="record in afterSales.content" :key="record.id" class="row-card">
           <div class="row-main">
-            <strong>{{ record.orderNo }} · {{ saleTypeText[record.type] || record.type }}</strong>
-            <span>{{ record.reason }} · {{ record.status }}</span>
+            <strong>{{ record.orderNo }} · {{ saleTypeText[formatStatus(record.type)] || formatStatus(record.type) }}</strong>
+            <span>{{ record.reason }} · {{ formatStatus(record.status) }}</span>
           </div>
         </article>
-        <p v-if="!afterSales.length" class="muted">暂无售后记录。</p>
+        <p v-if="!afterSales.content.length" class="muted">暂无售后记录。</p>
       </div>
     </section>
   </section>
 </template>
 
 <script setup>
+import { formatStatus } from '../utils/format'
 import { onMounted, reactive, ref } from 'vue'
+import Pagination from '../components/Pagination.vue'
 import {
   cancelOrder,
   createPayment,
@@ -86,8 +88,8 @@ import {
   requestAfterSale
 } from '../api/mall'
 
-const orders = ref([])
-const afterSales = ref([])
+const orders = ref({ content: [], page: 0, totalPages: 0 })
+const afterSales = ref({ content: [], page: 0, totalPages: 0 })
 const logistics = ref({})
 const loading = ref(false)
 const pageInfo = reactive({ page: 0, size: 10, totalPages: 0, first: true, last: true })
@@ -108,7 +110,7 @@ async function loadOrders(page = 0) {
   try {
     const [orderRes, afterSaleRes] = await Promise.all([getOrders(page, pageInfo.size), getAfterSales()])
     const data = orderRes.data
-    orders.value = data.content || []
+    orders.value = data.content || { content: [], page: 0, totalPages: 0 }
     afterSales.value = afterSaleRes.data
     Object.assign(pageInfo, {
       page: data.page ?? 0,

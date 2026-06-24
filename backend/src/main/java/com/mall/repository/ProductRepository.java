@@ -31,7 +31,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Page<Product> findAllByOrderByIdDesc(Pageable pageable);
 
+    Page<Product> findByMerchantIdOrderByIdDesc(Long merchantId, Pageable pageable);
+
     long countByStockLessThanEqual(Integer stock);
+
+    long countByMerchantId(Long merchantId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

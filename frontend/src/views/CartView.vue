@@ -24,8 +24,8 @@
     <div class="checkout-box">
       <label>
         <span>收货地址</span>
-        <select v-if="addresses.length" v-model="selectedAddressId" @change="syncAddress">
-          <option v-for="address in addresses" :key="address.id" :value="address.id">
+        <select v-if="addresses.content.length" v-model="selectedAddressId" @change="syncAddress">
+          <option v-for="address in addresses.content" :key="address.id" :value="address.id">
             {{ address.receiver }} · {{ address.phone }} · {{ address.region }} {{ address.detail }}
           </option>
         </select>
@@ -59,6 +59,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import Pagination from '../components/Pagination.vue'
 import { useRouter } from 'vue-router'
 import {
   checkout,
@@ -72,16 +73,16 @@ import {
 
 const router = useRouter()
 const cart = reactive({ items: [], totalAmount: 0 })
-const coupons = ref([])
+const coupons = ref({ content: [], page: 0, totalPages: 0 })
 const profile = ref(null)
-const addresses = ref([])
+const addresses = ref({ content: [], page: 0, totalPages: 0 })
 const selectedAddressId = ref(null)
 const shippingAddress = ref('')
 const couponId = ref(null)
 const pointsUsed = ref(0)
 const submitting = ref(false)
 
-const usableCoupons = computed(() => coupons.value.filter(item => item.claimed && !item.used))
+const usableCoupons = computed(() => coupons.value.content.filter(item => item.claimed && !item.used))
 const selectedCoupon = computed(() => usableCoupons.value.find(item => item.id === couponId.value))
 const couponDiscount = computed(() => {
   const coupon = selectedCoupon.value

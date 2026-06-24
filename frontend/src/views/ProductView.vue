@@ -95,6 +95,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import Pagination from '../components/Pagination.vue'
 import { useRoute } from 'vue-router'
 import {
   addCart,

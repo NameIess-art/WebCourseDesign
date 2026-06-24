@@ -12,6 +12,10 @@ http.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  const merchantId = localStorage.getItem('merchantId')
+  if (merchantId) {
+    config.headers['X-Merchant-Id'] = merchantId
+  }
   return config
 })
 

@@ -27,6 +27,7 @@ import com.mall.repository.ProductRepository;
 import com.mall.repository.ProductSkuRepository;
 import com.mall.repository.ReconciliationRecordRepository;
 import com.mall.repository.UserRepository;
+import com.mall.repository.MerchantRepository;
 import com.mall.vo.AfterSaleResponse;
 import com.mall.vo.DashboardResponse;
 import com.mall.vo.OrderResponse;
@@ -36,6 +37,7 @@ import com.mall.vo.ProductResponse;
 import com.mall.vo.ProductSkuResponse;
 import com.mall.vo.SimpleItemResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -63,17 +65,27 @@ public class AdminService {
     private final ReconciliationRecordRepository reconciliationRecordRepository;
     private final PaymentRecordRepository paymentRecordRepository;
     private final AfterSaleRecordRepository afterSaleRecordRepository;
+    private final MerchantRepository merchantRepository;
+
+    private Long requireMerchantId() {
+        Long merchantId = com.mall.context.MerchantContextHolder.getMerchantId();
+        if (merchantId == null) {
+            throw new BusinessException("Please select a merchant first");
+        }
+        return merchantId;
+    }
 
     @Transactional(readOnly = true)
     public DashboardResponse dashboard() {
+        Long merchantId = requireMerchantId();
         List<OrderStatus> revenueStatuses = List.of(OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.COMPLETED);
-        BigDecimal totalRevenue = orderRepository.sumTotalAmountByStatusIn(revenueStatuses);
+        BigDecimal totalRevenue = orderRepository.sumTotalAmountByMerchantIdAndStatusIn(merchantId, revenueStatuses);
 
         return new DashboardResponse(
-                userRepository.count(),
-                productRepository.count(),
-                orderRepository.count(),
-                orderRepository.countByStatus(OrderStatus.PENDING_PAYMENT),
+                userRepository.countByMerchantId(merchantId),
+                productRepository.countByMerchantId(merchantId),
+                orderRepository.countByMerchantId(merchantId),
+                orderRepository.countByMerchantIdAndStatus(merchantId, OrderStatus.PENDING_PAYMENT),
                 totalRevenue
         );
     }
@@ -85,9 +97,10 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public PageResponse<ProductResponse> products(int page, int size) {
+        Long merchantId = requireMerchantId();
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
-        var productPage = productRepository.findAllByOrderByIdDesc(PageRequest.of(safePage, safeSize));
+        var productPage = productRepository.findByMerchantIdOrderByIdDesc(merchantId, PageRequest.of(safePage, safeSize));
         List<Long> productIds = productPage.getContent().stream().map(Product::getId).toList();
         Map<Long, List<ProductSku>> skuMap = productIds.isEmpty()
                 ? Map.of()
@@ -106,9 +119,11 @@ public class AdminService {
 
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
+        Long merchantId = requireMerchantId();
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException("Category not found"));
         Product product = new Product();
+        product.setMerchant(merchantRepository.findById(merchantId).orElseThrow());
         updateFields(product, request, category);
         Product saved = productRepository.save(product);
         syncProductChildren(saved, request);
@@ -153,15 +168,16 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> orders(String status, int page, int size) {
+        Long merchantId = requireMerchantId();
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
         PageRequest pageRequest = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         if (status == null || status.isBlank()) {
-            return PageResponse.of(orderRepository.findAllByOrderByCreatedAtDesc(pageRequest).map(this::toOrderResponse));
+            return PageResponse.of(orderRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId, pageRequest).map(this::toOrderResponse));
         }
         try {
             OrderStatus orderStatus = OrderStatus.valueOf(status.trim().toUpperCase());
-            return PageResponse.of(orderRepository.findByStatusOrderByCreatedAtDesc(orderStatus, pageRequest)
+            return PageResponse.of(orderRepository.findByMerchantIdAndStatusOrderByCreatedAtDesc(merchantId, orderStatus, pageRequest)
                     .map(this::toOrderResponse));
         } catch (IllegalArgumentException ex) {
             throw new BusinessException("Invalid order status");
@@ -236,20 +252,22 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<AfterSaleResponse> allAfterSales() {
-        return afterSaleRecordRepository.findAll().stream()
-                .map(record -> new AfterSaleResponse(record.getId(), record.getOrder().getOrderNo(),
-                        record.getType(), record.getReason(), record.getStatus(), record.getCreatedAt()))
-                .toList();
+    public PageResponse<AfterSaleResponse> afterSales(int page, int size) {
+        Page<AfterSaleResponse> result = afterSaleRecordRepository.findAll(PageRequest.of(page, size)).map(this::toAfterSaleResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional(readOnly = true)
-    public List<SimpleItemResponse> reconciliations() {
-        return reconciliationRecordRepository.findAll().stream()
-                .map(record -> new SimpleItemResponse(record.getId(), record.getBizDate().toString(),
-                        record.getStatus(), "orders=" + record.getOrderAmount()
-                        + ", payments=" + record.getPaymentAmount(), record.getStatus()))
-                .toList();
+    public PageResponse<SimpleItemResponse> reconciliations(int page, int size) {
+        Page<SimpleItemResponse> result = reconciliationRecordRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getBizDate().toString(), "RECONCILIATION",
+                        "Total: " + item.getOrderAmount() + " / Payments: " + item.getPaymentAmount(),
+                        item.getStatus()));
+        return PageResponse.of(result);
+    }
+
+    private AfterSaleResponse toAfterSaleResponse(AfterSaleRecord record) {
+        return new AfterSaleResponse(record.getId(), record.getOrder().getOrderNo(),
+                        record.getType(), record.getReason(), record.getStatus(), record.getCreatedAt());
     }
 
     private void updateFields(Product product, ProductRequest request, Category category) {

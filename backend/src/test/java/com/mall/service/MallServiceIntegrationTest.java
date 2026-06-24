@@ -169,7 +169,8 @@ class MallServiceIntegrationTest {
 
         assertThat(merchantActivity.status()).isEqualTo("PENDING_REVIEW");
         assertThat(adminActivity.status()).isEqualTo("APPROVED");
-        assertThat(operationService.publicActivities())
+        var publicActivities = operationService.publicActivities(0, 10);
+        assertThat(publicActivities.content())
                 .extracting("title")
                 .contains("Platform Approved Campaign")
                 .doesNotContain("Merchant Draft Campaign");

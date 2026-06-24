@@ -9,10 +9,13 @@ import com.mall.enums.UserRole;
 import com.mall.service.OperationService;
 import com.mall.vo.ApiResponse;
 import com.mall.vo.HighConcurrencyResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.MarketingActivityResponse;
 import com.mall.vo.OperationBoardResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.PlatformRiskResponse;
 import com.mall.vo.ReportResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.SimpleItemResponse;
 import com.mall.vo.SystemConfigResponse;
 import jakarta.validation.Valid;
@@ -46,8 +49,8 @@ public class OperationController {
     }
 
     @GetMapping("/marketing")
-    public ApiResponse<List<MarketingActivityResponse>> activities() {
-        return ApiResponse.success(operationService.activities());
+    public ApiResponse<PageResponse<MarketingActivityResponse>> activities(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.activities(page, size));
     }
 
     @PostMapping("/marketing")
@@ -66,8 +69,8 @@ public class OperationController {
 
     @GetMapping("/configs")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SystemConfigResponse>> configs() {
-        return ApiResponse.success(operationService.configs());
+    public ApiResponse<PageResponse<SystemConfigResponse>> configs(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.configs(page, size));
     }
 
     @PutMapping("/configs/{key}")
@@ -93,8 +96,8 @@ public class OperationController {
 
     @GetMapping("/risk")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<PlatformRiskResponse>> risks() {
-        return ApiResponse.success(operationService.risks());
+    public ApiResponse<PageResponse<PlatformRiskResponse>> risks(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.risks(page, size));
     }
 
     @PatchMapping("/risk/{id}/resolve")
@@ -115,8 +118,8 @@ public class OperationController {
 
     @GetMapping("/dictionaries")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SimpleItemResponse>> dictionaries() {
-        return ApiResponse.success(operationService.dictionaries());
+    public ApiResponse<PageResponse<SimpleItemResponse>> dictionaries(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.dictionaries(page, size));
     }
 
     @PostMapping("/dictionaries")
@@ -134,8 +137,8 @@ public class OperationController {
 
     @GetMapping("/announcements")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SimpleItemResponse>> announcements() {
-        return ApiResponse.success(operationService.announcements());
+    public ApiResponse<PageResponse<SimpleItemResponse>> announcements(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.announcements(page, size));
     }
 
     @PostMapping("/announcements")
@@ -153,8 +156,8 @@ public class OperationController {
 
     @GetMapping("/merchants")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SimpleItemResponse>> merchants() {
-        return ApiResponse.success(operationService.merchants());
+    public ApiResponse<PageResponse<SimpleItemResponse>> merchants(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.merchants(page, size));
     }
 
     @PostMapping("/merchants")
@@ -179,8 +182,8 @@ public class OperationController {
 
     @GetMapping("/roles")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SimpleItemResponse>> roles() {
-        return ApiResponse.success(operationService.roles());
+    public ApiResponse<PageResponse<SimpleItemResponse>> roles(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.roles(page, size));
     }
 
     @PostMapping("/roles")
@@ -191,8 +194,8 @@ public class OperationController {
 
     @GetMapping("/permissions")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SimpleItemResponse>> permissions() {
-        return ApiResponse.success(operationService.permissions());
+    public ApiResponse<PageResponse<SimpleItemResponse>> permissions(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.permissions(page, size));
     }
 
     @PostMapping("/permissions")
@@ -203,8 +206,8 @@ public class OperationController {
 
     @GetMapping("/content-audits")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SimpleItemResponse>> contentAudits() {
-        return ApiResponse.success(operationService.contentAudits());
+    public ApiResponse<PageResponse<SimpleItemResponse>> contentAudits(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.contentAudits(page, size));
     }
 
     @PostMapping("/content-audits")
@@ -222,8 +225,8 @@ public class OperationController {
 
     @GetMapping("/promotion-rules")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<SimpleItemResponse>> promotionRules() {
-        return ApiResponse.success(operationService.promotionRules());
+    public ApiResponse<PageResponse<SimpleItemResponse>> promotionRules(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.promotionRules(page, size));
     }
 
     @PostMapping("/promotion-rules")
@@ -233,8 +236,8 @@ public class OperationController {
     }
 
     @GetMapping("/marketing/flows")
-    public ApiResponse<List<SimpleItemResponse>> marketingFlows() {
-        return ApiResponse.success(operationService.marketingFlows());
+    public ApiResponse<PageResponse<SimpleItemResponse>> marketingFlows(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.marketingFlows(page, size));
     }
 
     @PostMapping("/marketing/{flowType}")

@@ -14,6 +14,7 @@ import com.mall.repository.ProductRepository;
 import com.mall.repository.ProductSkuRepository;
 import com.mall.repository.SeckillEventRepository;
 import com.mall.vo.OrderItemResponse;
+import com.mall.vo.PageResponse;
 import com.mall.vo.OrderResponse;
 import com.mall.vo.SeckillEventResponse;
 import lombok.RequiredArgsConstructor;
@@ -43,10 +44,10 @@ public class SeckillService {
     private final Map<String, Deque<Long>> requestWindows = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
-    public List<SeckillEventResponse> events() {
-        return seckillEventRepository.findByActiveTrueOrderByStartAtDesc().stream()
-                .map(this::toResponse)
-                .toList();
+    public PageResponse<SeckillEventResponse> events(int page, int size) {
+        org.springframework.data.domain.Page<SeckillEventResponse> result = seckillEventRepository.findByActiveTrueOrderByStartAtDesc(org.springframework.data.domain.PageRequest.of(page, size))
+                .map(this::toResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional

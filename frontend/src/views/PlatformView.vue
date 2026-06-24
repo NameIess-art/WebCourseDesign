@@ -2,7 +2,7 @@
   <div class="admin-layout">
     <section class="admin-hero">
       <div>
-        <p class="eyebrow">Platform Console</p>
+        <p class="eyebrow">平台控制台</p>
         <h1>运营总后台</h1>
         <p class="muted">平台侧负责全域活动、权限风控、配置中心、商家治理和数据分析。</p>
       </div>
@@ -45,10 +45,10 @@
         </form>
       </div>
       <div class="module-grid">
-        <article v-for="activity in marketing" :key="activity.id" class="row-card">
+        <article v-for="activity in marketing.content" :key="activity.id" class="row-card">
           <div class="row-main">
-            <strong>{{ activity.title }} · {{ activity.type }}</strong>
-            <span class="muted">{{ activity.ruleText }} · {{ activity.status }}</span>
+            <strong>{{ activity.title }} · {{ formatStatus(activity.type) }}</strong>
+            <span class="muted">{{ activity.ruleText }} · {{ formatStatus(activity.status) }}</span>
           </div>
           <div class="row-actions">
             <button class="ghost-button" @click="auditActivityItem(activity, true)">通过</button>
@@ -56,6 +56,7 @@
           </div>
         </article>
       </div>
+      <Pagination v-if="marketing.totalPages > 1" :page="marketing.page" :totalPages="marketing.totalPages" @change="p => getMarketing(p, 10).then(res => marketing = res.data)" />
     </section>
 
     <section id="risk" class="module-section">
@@ -95,38 +96,41 @@
         </form>
       </div>
       <div class="dual-grid">
-        <ListPanel title="风控事项" :items="risks">
+        <ListPanel title="风控事项" :items="risks.content">
           <template #default="{ item }">
-            <div class="row-main"><strong>{{ item.target }}</strong><span class="muted">{{ item.riskType }} · {{ item.description }} · {{ item.status }}</span></div>
+            <div class="row-main"><strong>{{ item.target }}</strong><span class="muted">{{ formatStatus(item.riskType) }} · {{ item.description }} · {{ formatStatus(item.status) }}</span></div>
             <button class="ghost-button" @click="resolveRiskItem(item.id)">处理</button>
           </template>
         </ListPanel>
-        <ListPanel title="商家处罚与启停" :items="merchants">
+        <Pagination v-if="risks.totalPages > 1" :page="risks.page" :totalPages="risks.totalPages" @change="p => getRiskItems(p, 10).then(res => risks = res.data)" />
+        <ListPanel title="商家处罚与启停" :items="merchants.content">
           <template #default="{ item }">
-            <div class="row-main"><strong>{{ item.title }}</strong><span class="muted">{{ item.type }} · {{ item.status }}</span></div>
+            <div class="row-main"><strong>{{ item.title }}</strong><span class="muted">{{ formatStatus(item.type) }} · {{ formatStatus(item.status) }}</span></div>
             <div class="row-actions">
-              <button class="ghost-button" @click="changeMerchantStatus(item, 'ACTIVE')">启用</button>
+              <button class="ghost-button" @click="changeMerchantStatus(item, '正常')">启用</button>
               <button class="ghost-button" @click="changeMerchantStatus(item, 'DISABLED')">停用</button>
               <button class="ghost-button" @click="penalty(item)">处罚</button>
             </div>
           </template>
         </ListPanel>
+        <Pagination v-if="merchants.totalPages > 1" :page="merchants.page" :totalPages="merchants.totalPages" @change="p => getMerchants(p, 10).then(res => merchants = res.data)" />
       </div>
       <div class="dual-grid">
-        <ListPanel title="角色与权限" :items="[...roles, ...permissions]">
+        <ListPanel title="角色与权限" :items="[...(roles.content || []), ...(permissions.content || [])]">
           <template #default="{ item }">
-            <div class="row-main"><strong>{{ item.title }}</strong><span class="muted">{{ item.type }} · {{ item.content }}</span></div>
+            <div class="row-main"><strong>{{ item.title }}</strong><span class="muted">{{ formatStatus(item.type) }} · {{ item.content }}</span></div>
           </template>
         </ListPanel>
-        <ListPanel title="审核池" :items="contentAudits">
+        <ListPanel title="审核池" :items="contentAudits.content">
           <template #default="{ item }">
-            <div class="row-main"><strong>{{ item.title }}</strong><span class="muted">{{ item.type }} · {{ item.status }}</span></div>
+            <div class="row-main"><strong>{{ item.title }}</strong><span class="muted">{{ formatStatus(item.type) }} · {{ formatStatus(item.status) }}</span></div>
             <div class="row-actions">
               <button class="ghost-button" @click="auditContentItem(item, true)">通过</button>
               <button class="ghost-button" @click="auditContentItem(item, false)">驳回</button>
             </div>
           </template>
         </ListPanel>
+        <Pagination v-if="contentAudits.totalPages > 1" :page="contentAudits.page" :totalPages="contentAudits.totalPages" @change="p => getContentAudits(p, 10).then(res => contentAudits = res.data)" />
       </div>
     </section>
 
@@ -160,13 +164,13 @@
         </form>
       </div>
       <div class="module-grid">
-        <SimpleRow v-for="item in configs" :key="item.configKey || item.key" :title="item.configKey || item.key" :type="item.configValue || item.value" :content="item.description">
+        <SimpleRow v-for="item in configs.content" :key="item.configKey || item.key" :title="item.configKey || item.key" :type="item.configValue || item.value" :content="item.description">
           <button class="ghost-button" @click="removeConfig(item.configKey || item.key)">删除</button>
         </SimpleRow>
-        <SimpleRow v-for="item in dictionaries" :key="`dict-${item.id}`" :title="item.title" :type="item.type" :content="item.content">
+        <SimpleRow v-for="item in dictionaries.content" :key="`dict-${item.id}`" :title="item.title" :type="item.type" :content="item.content">
           <button class="ghost-button" @click="removeDictionary(item.id)">删除</button>
         </SimpleRow>
-        <SimpleRow v-for="item in announcements" :key="`ann-${item.id}`" :title="item.title" :type="item.type" :content="item.content">
+        <SimpleRow v-for="item in announcements.content" :key="`ann-${item.id}`" :title="item.title" :type="item.type" :content="item.content">
           <button class="ghost-button" @click="removeAnnouncement(item.id)">删除</button>
         </SimpleRow>
       </div>
@@ -184,14 +188,16 @@
         <article class="notice-box"><strong>用户画像</strong><span>{{ reports.userPortrait || '暂无画像数据' }}</span></article>
         <article class="notice-box"><strong>营销效果</strong><span>{{ reports.marketingEffect || '暂无营销效果数据' }}</span></article>
         <SimpleRow v-for="item in analytics" :key="item.id" :title="item.title" :type="item.type" :content="item.content" />
-        <SimpleRow v-for="rule in promotionRules" :key="`rule-${rule.id}`" :title="rule.title" :type="rule.type" :content="rule.content" />
+        <SimpleRow v-for="rule in promotionRules.content" :key="`rule-${rule.id}`" :title="rule.title" :type="rule.type" :content="rule.content" />
       </div>
     </section>
   </div>
 </template>
 
 <script setup>
+import { formatStatus } from '../utils/format'
 import { defineComponent, h, onMounted, reactive, ref } from 'vue'
+import Pagination from '../components/Pagination.vue'
 import {
   auditActivity,
   auditContent,
@@ -249,23 +255,23 @@ const loading = ref(false)
 const notice = ref(null)
 const board = ref({})
 const reports = ref({})
-const marketing = ref([])
-const configs = ref([])
-const dictionaries = ref([])
-const announcements = ref([])
-const risks = ref([])
-const merchants = ref([])
-const roles = ref([])
-const permissions = ref([])
-const contentAudits = ref([])
-const promotionRules = ref([])
+const marketing = ref({ content: [], page: 0, totalPages: 0 })
+const configs = ref({ content: [], page: 0, totalPages: 0 })
+const dictionaries = ref({ content: [], page: 0, totalPages: 0 })
+const announcements = ref({ content: [], page: 0, totalPages: 0 })
+const risks = ref({ content: [], page: 0, totalPages: 0 })
+const merchants = ref({ content: [], page: 0, totalPages: 0 })
+const roles = ref({ content: [], page: 0, totalPages: 0 })
+const permissions = ref({ content: [], page: 0, totalPages: 0 })
+const contentAudits = ref({ content: [], page: 0, totalPages: 0 })
+const promotionRules = ref({ content: [], page: 0, totalPages: 0 })
 const analytics = ref([])
 
 const activityForm = reactive({ title: '', type: 'FULL_REDUCTION', ruleText: '' })
 const promotionForm = reactive({ title: '', promotionType: 'FULL_REDUCTION', thresholdAmount: 0, discountAmount: 0, ruleText: '' })
 const roleForm = reactive({ title: 'OPERATOR', type: '运营专员', content: '' })
 const permissionForm = reactive({ title: 'platform:view', type: 'MENU', content: '' })
-const merchantForm = reactive({ title: '', type: 'ACTIVE', content: '' })
+const merchantForm = reactive({ title: '', type: '正常', content: '' })
 const contentForm = reactive({ title: '', type: 'REVIEW', content: '' })
 const configForm = reactive({ key: 'mall.channel.default', value: 'WEB', description: '默认渠道配置' })
 const dictionaryForm = reactive({ title: '', type: 'CHANNEL', content: '' })
@@ -293,16 +299,16 @@ async function loadData() {
     getRoles(), getPermissions(), getContentAudits(), getPromotionRules(), getAnalytics(), getReports()
   ])
   board.value = boardRes.data || {}
-  marketing.value = marketingRes.data || []
-  configs.value = configRes.data || []
-  dictionaries.value = dictRes.data || []
-  announcements.value = annRes.data || []
-  risks.value = riskRes.data || []
-  merchants.value = merchantRes.data || []
-  roles.value = roleRes.data || []
-  permissions.value = permissionRes.data || []
-  contentAudits.value = auditRes.data || []
-  promotionRules.value = ruleRes.data || []
+  marketing.value = marketingRes.data || { content: [], page: 0, totalPages: 0 }
+  configs.value = configRes.data || { content: [], page: 0, totalPages: 0 }
+  dictionaries.value = dictRes.data || { content: [], page: 0, totalPages: 0 }
+  announcements.value = annRes.data || { content: [], page: 0, totalPages: 0 }
+  risks.value = riskRes.data || { content: [], page: 0, totalPages: 0 }
+  merchants.value = merchantRes.data || { content: [], page: 0, totalPages: 0 }
+  roles.value = roleRes.data || { content: [], page: 0, totalPages: 0 }
+  permissions.value = permissionRes.data || { content: [], page: 0, totalPages: 0 }
+  contentAudits.value = auditRes.data || { content: [], page: 0, totalPages: 0 }
+  promotionRules.value = ruleRes.data || { content: [], page: 0, totalPages: 0 }
   analytics.value = analyticsRes.data || []
   reports.value = reportRes.data || {}
 }
@@ -343,7 +349,8 @@ async function savePermission() {
 
 async function saveMerchant() {
   await runAction('商家已创建', async () => {
-    await createMerchant(merchantForm)
+    const res = await createMerchant(merchantForm)
+    window.alert(`商家创建成功！\n\n${res.data.content}`)
     merchantForm.title = ''
     merchantForm.content = ''
   })

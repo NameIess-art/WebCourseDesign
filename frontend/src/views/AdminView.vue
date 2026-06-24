@@ -28,7 +28,7 @@
         <input v-model="productForm.spec" placeholder="默认规格" required />
         <input v-model="productForm.promotionTag" placeholder="营销标签" />
         <select v-model.number="productForm.categoryId" required>
-          <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
+          <option v-for="category in categories.content" :key="category.id" :value="category.id">{{ category.name }}</option>
         </select>
         <textarea v-model="productForm.description" placeholder="商品详情说明" required></textarea>
         <textarea v-model="skuLines" placeholder="SKU 明细：每行 skuCode|规格名|价格|库存，例如 SKU-RED|红色 128G|599|20"></textarea>
@@ -41,7 +41,7 @@
       </form>
 
       <div class="stack-list">
-        <article v-for="product in products" :key="product.id" class="row-card">
+        <article v-for="product in products.content" :key="product.id" class="row-card">
           <div class="row-main">
             <strong>{{ product.name }}</strong>
             <span>{{ product.categoryName }} · ¥{{ product.price }} · 库存 {{ product.stock }} · {{ product.active ? '已上架' : '已下架' }}</span>
@@ -52,6 +52,7 @@
             <button v-if="product.active" class="ghost-button" @click="removeProduct(product.id)">下架</button>
           </div>
         </article>
+        <Pagination v-if="products.totalPages > 1" :page="products.page" :totalPages="products.totalPages" @change="p => getAdminProducts(p, 10).then(res => products = res.data)" />
       </div>
     </section>
 
@@ -61,28 +62,30 @@
         <button class="accent-button" @click="runReconciliation">生成今日对账</button>
       </div>
       <div class="stack-list">
-        <article v-for="order in orders" :key="order.id" class="row-card">
+        <article v-for="order in orders.content" :key="order.id" class="row-card">
           <div class="row-main">
             <strong>{{ order.orderNo }}</strong>
-            <span>{{ statusText[order.status] || order.status }} · 审核 {{ order.auditStatus }} · ¥{{ order.totalAmount }}</span>
+            <span>{{ statusText[formatStatus(order.status)] || formatStatus(order.status) }} · 审核 {{ order.auditStatus }} · ¥{{ order.totalAmount }}</span>
           </div>
           <div class="row-actions">
             <button class="ghost-button" @click="audit(order.id, true)">审核通过</button>
             <button class="ghost-button" @click="audit(order.id, false)">驳回</button>
             <button class="ghost-button" @click="modify(order)">改单</button>
-            <button v-if="order.status === 'PAID'" class="accent-button" @click="ship(order.id)">发货</button>
+            <button v-if="order.status === '已支付'" class="accent-button" @click="ship(order.id)">发货</button>
           </div>
         </article>
+        <Pagination v-if="orders.totalPages > 1" :page="orders.page" :totalPages="orders.totalPages" @change="p => getAdminOrders(null, p, 10).then(res => orders = res.data)" />
       </div>
       <div class="stack-list">
         <h3>售后处理</h3>
-        <article v-for="record in afterSales" :key="record.id" class="row-card">
+        <article v-for="record in afterSales.content" :key="record.id" class="row-card">
           <div class="row-main">
-            <strong>{{ record.orderNo }} · {{ record.type }}</strong>
-            <span>{{ record.reason }} · {{ record.status }}</span>
+            <strong>{{ record.orderNo }} · {{ formatStatus(record.type) }}</strong>
+            <span>{{ record.reason }} · {{ formatStatus(record.status) }}</span>
           </div>
           <button class="ghost-button" @click="processSale(record.id)">处理</button>
         </article>
+        <Pagination v-if="afterSales.totalPages > 1" :page="afterSales.page" :totalPages="afterSales.totalPages" @change="p => getAdminAfterSales(p, 10).then(res => afterSales = res.data)" />
       </div>
     </section>
 
@@ -105,14 +108,15 @@
       </form>
       <div class="dual-grid">
         <div class="stack-list">
-          <article v-for="activity in marketing" :key="activity.id" class="row-card">
+          <article v-for="activity in marketing.content" :key="activity.id" class="row-card">
             <div class="row-main">
-              <strong>{{ activity.title }} · {{ activity.type }}</strong>
-              <span>{{ activity.ruleText }} · {{ activity.status }}</span>
+              <strong>{{ activity.title }} · {{ formatStatus(activity.type) }}</strong>
+              <span>{{ activity.ruleText }} · {{ formatStatus(activity.status) }}</span>
             </div>
             <button class="ghost-button" @click="approveActivity(activity.id)">审核通过</button>
           </article>
-        </div>
+        <Pagination v-if="marketing.totalPages > 1" :page="marketing.page" :totalPages="marketing.totalPages" @change="p => getMarketing(p, 10).then(res => marketing = res.data)" />
+      </div>
         <div class="stack-list">
           <h3>营销闭环</h3>
           <form class="admin-form" @submit.prevent="submitMarketingFlow">
@@ -127,13 +131,14 @@
             <textarea v-model="flowForm.content" placeholder="流程说明" required></textarea>
             <button class="accent-button">创建营销流程</button>
           </form>
-          <article v-for="flow in marketingFlows" :key="flow.id" class="row-card">
+          <article v-for="flow in marketingFlows.content" :key="flow.id" class="row-card">
             <div class="row-main">
-              <strong>{{ flow.title }} · {{ flow.type }}</strong>
-              <span>{{ flow.content }} · {{ flow.status }}</span>
+              <strong>{{ flow.title }} · {{ formatStatus(flow.type) }}</strong>
+              <span>{{ flow.content }} · {{ formatStatus(flow.status) }}</span>
             </div>
           </article>
-        </div>
+        <Pagination v-if="marketingFlows.totalPages > 1" :page="marketingFlows.page" :totalPages="marketingFlows.totalPages" @change="p => getMarketingFlows(p, 10).then(res => marketingFlows = res.data)" />
+      </div>
       </div>
     </section>
 
@@ -145,7 +150,7 @@
       <form class="admin-form action-form" @submit.prevent="submitSeckill">
         <select v-model.number="seckillForm.productId" required>
           <option disabled value="">选择秒杀商品</option>
-          <option v-for="product in products" :key="product.id" :value="product.id">
+          <option v-for="product in products.content" :key="product.id" :value="product.id">
             {{ product.name }} · 原价 ¥{{ product.price }} · 库存 {{ product.stock }}
           </option>
         </select>
@@ -170,47 +175,54 @@
             <input v-model="configForm.description" placeholder="说明" required />
             <button class="accent-button">保存配置</button>
           </form>
-          <article v-for="config in configs" :key="config.id" class="row-card">
+          <article v-for="config in configs.content" :key="config.id" class="row-card">
             <div class="row-main">
               <strong>{{ config.key }}</strong>
               <span>{{ config.value }} · {{ config.description }}</span>
             </div>
           </article>
-        </div>
+        <Pagination v-if="configs.totalPages > 1" :page="configs.page" :totalPages="configs.totalPages" @change="p => getConfigs(p, 10).then(res => configs = res.data)" />
+      </div>
         <div class="stack-list">
-          <article v-for="risk in risks" :key="risk.id" class="row-card">
+          <article v-for="risk in risks.content" :key="risk.id" class="row-card">
             <div class="row-main">
-              <strong>{{ risk.target }} · {{ risk.riskType }}</strong>
-              <span>{{ risk.description }} · {{ risk.status }}</span>
+              <strong>{{ risk.target }} · {{ formatStatus(risk.riskType) }}</strong>
+              <span>{{ risk.description }} · {{ formatStatus(risk.status) }}</span>
             </div>
             <button v-if="risk.status !== 'RESOLVED'" class="ghost-button" @click="resolve(risk.id)">处理</button>
           </article>
-        </div>
+        <Pagination v-if="risks.totalPages > 1" :page="risks.page" :totalPages="risks.totalPages" @change="p => getRiskItems(p, 10).then(res => risks = res.data)" />
+      </div>
       </div>
       <div class="product-grid">
         <article class="stat-card">
           <h3>RBAC</h3>
-          <p v-for="role in roles" :key="role.id">{{ role.title }} · {{ role.type }}</p>
+          <p v-for="role in roles.content" :key="role.id">{{ role.title }} · {{ formatStatus(role.type) }}</p>
         </article>
         <article class="stat-card">
           <h3>商家管理</h3>
-          <p v-for="merchant in merchants" :key="merchant.id">{{ merchant.title }} · {{ merchant.status }}</p>
-        </article>
+          <p v-for="merchant in merchants.content" :key="merchant.id">{{ merchant.title }} · {{ formatStatus(merchant.status) }}</p>
+        <Pagination v-if="merchants.totalPages > 1" :page="merchants.page" :totalPages="merchants.totalPages" @change="p => getMerchants(p, 10).then(res => merchants = res.data)" />
+      </article>
         <article class="stat-card">
           <h3>内容审核</h3>
-          <p v-for="item in audits" :key="item.id">{{ item.title }} · {{ item.status }}</p>
-        </article>
+          <p v-for="item in audits.content" :key="item.id">{{ item.title }} · {{ formatStatus(item.status) }}</p>
+        <Pagination v-if="audits.totalPages > 1" :page="audits.page" :totalPages="audits.totalPages" @change="p => getContentAudits(p, 10).then(res => audits = res.data)" />
+      </article>
         <article class="stat-card">
           <h3>数据分析</h3>
           <p v-for="item in analytics" :key="item.id">{{ item.title }}：{{ item.content }}</p>
         </article>
+        <Pagination v-if="roles.totalPages > 1" :page="roles.page" :totalPages="roles.totalPages" @change="p => getRoles(p, 10).then(res => roles = res.data)" />
       </div>
     </section>
   </section>
 </template>
 
 <script setup>
+import { formatStatus } from '../utils/format'
 import { onMounted, reactive, ref } from 'vue'
+import Pagination from '../components/Pagination.vue'
 import {
   auditActivity,
   auditOrder,
@@ -243,17 +255,17 @@ import {
 import { getCategories } from '../api/mall'
 
 const dashboard = ref(null)
-const products = ref([])
-const orders = ref([])
-const categories = ref([])
-const marketing = ref([])
-const marketingFlows = ref([])
-const configs = ref([])
-const risks = ref([])
-const afterSales = ref([])
-const roles = ref([])
-const merchants = ref([])
-const audits = ref([])
+const products = ref({ content: [], page: 0, totalPages: 0 })
+const orders = ref({ content: [], page: 0, totalPages: 0 })
+const categories = ref({ content: [], page: 0, totalPages: 0 })
+const marketing = ref({ content: [], page: 0, totalPages: 0 })
+const marketingFlows = ref({ content: [], page: 0, totalPages: 0 })
+const configs = ref({ content: [], page: 0, totalPages: 0 })
+const risks = ref({ content: [], page: 0, totalPages: 0 })
+const afterSales = ref({ content: [], page: 0, totalPages: 0 })
+const roles = ref({ content: [], page: 0, totalPages: 0 })
+const merchants = ref({ content: [], page: 0, totalPages: 0 })
+const audits = ref({ content: [], page: 0, totalPages: 0 })
 const analytics = ref([])
 const concurrency = ref(null)
 const skuLines = ref('')

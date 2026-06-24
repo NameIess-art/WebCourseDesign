@@ -31,8 +31,8 @@
       <div v-else class="activity-grid">
         <article v-for="activity in approvedActivities" :key="activity.id" class="activity-card">
           <div class="activity-card-head">
-            <span class="activity-type">{{ typeLabel(activity.type) }}</span>
-            <span class="activity-status">{{ activity.status }}</span>
+            <span class="activity-type">{{ typeLabel(formatStatus(activity.type)) }}</span>
+            <span class="activity-status">{{ formatStatus(activity.status) }}</span>
           </div>
           <h3>{{ activity.title }}</h3>
           <p>{{ activity.ruleText }}</p>
@@ -41,7 +41,7 @@
             <span>结束：{{ formatDate(activity.endAt) }}</span>
           </div>
           <div class="row-actions">
-            <button class="accent-button compact" @click="primaryAction(activity)">{{ actionLabel(activity.type) }}</button>
+            <button class="accent-button compact" @click="primaryAction(activity)">{{ actionLabel(formatStatus(activity.type)) }}</button>
             <button class="ghost-button" @click="goProducts">浏览商品</button>
           </div>
         </article>
@@ -51,7 +51,7 @@
     <section v-if="recommendations.activity?.length" class="module-section">
       <div class="section-head">
         <div>
-          <p class="eyebrow">Products</p>
+          <p class="eyebrow">商品管理</p>
           <h2>活动推荐商品</h2>
         </div>
       </div>
@@ -75,16 +75,18 @@
 </template>
 
 <script setup>
+import { formatStatus } from '../utils/format'
 import { computed, onMounted, ref } from 'vue'
+import Pagination from '../components/Pagination.vue'
 import { useRouter } from 'vue-router'
 import { getActivities, getRecommendations } from '../api/mall'
 
 const router = useRouter()
 const loading = ref(false)
-const activities = ref([])
+const activities = ref({ content: [], page: 0, totalPages: 0 })
 const recommendations = ref({ activity: [] })
 
-const approvedActivities = computed(() => activities.value.filter((item) => item.status === 'APPROVED'))
+const approvedActivities = computed(() => activities.value.content.filter((item) => item.status === 'APPROVED'))
 
 onMounted(loadData)
 
@@ -92,7 +94,7 @@ async function loadData() {
   loading.value = true
   try {
     const [activityRes, recommendationRes] = await Promise.all([getActivities(), getRecommendations()])
-    activities.value = activityRes.data || []
+    activities.value = activityRes.data || { content: [], page: 0, totalPages: 0 }
     recommendations.value = recommendationRes.data || { activity: [] }
   } finally {
     loading.value = false

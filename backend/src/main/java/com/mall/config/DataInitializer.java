@@ -78,10 +78,37 @@ public class DataInitializer {
                                PromotionRuleRepository promotionRuleRepository,
                                MarketingFlowRecordRepository marketingFlowRecordRepository) {
         return args -> {
+            
+            if (merchantRepository.count() == 0) {
+                merchantRepository.saveAll(List.of(
+                        merchant("商家1", "18800000001", "ACTIVE"),
+                        merchant("商家2", "18800000002", "ACTIVE"),
+                        merchant("商家3", "18800000003", "ACTIVE"),
+                        merchant("商家4", "18800000004", "ACTIVE"),
+                        merchant("商家5", "18800000005", "ACTIVE"),
+                        merchant("商家6", "18800000006", "ACTIVE")
+                ));
+            }
+            List<Merchant> allMerchants = merchantRepository.findAll();
+            Merchant digital = allMerchants.get(0);
+            Merchant lifestyle = allMerchants.get(1);
+            Merchant apple = allMerchants.get(2);
+            Merchant sony = allMerchants.get(3);
+            Merchant nike = allMerchants.get(4);
+            Merchant fresh = allMerchants.get(5);
+
             relaxLegacyUserRoleConstraint(jdbcTemplate);
-            ensureUser(userRepository, "admin", "admin123", "admin@mall.local", "Mall Admin", UserRole.ADMIN, 1000, "ADMIN");
-            ensureUser(userRepository, "merchant", "merchant123", "merchant@mall.local", "Demo Merchant", UserRole.MERCHANT, 300, "MERCHANT");
-            ensureUser(userRepository, "demo", "demo123", "demo@mall.local", "Demo User", UserRole.USER, 260, "GOLD");
+            ensureUser(userRepository, "admin", "123", "admin@mall.local", "平台管理员", UserRole.ADMIN, 1000, "ADMIN", null);
+            ensureUser(userRepository, "merchant1", "123", "m1@mall.local", "商家1管理员", UserRole.MERCHANT, 300, "MERCHANT", digital);
+            ensureUser(userRepository, "merchant2", "123", "m2@mall.local", "商家2管理员", UserRole.MERCHANT, 300, "MERCHANT", lifestyle);
+            ensureUser(userRepository, "merchant3", "123", "m3@mall.local", "商家3管理员", UserRole.MERCHANT, 300, "MERCHANT", apple);
+            ensureUser(userRepository, "merchant4", "123", "m4@mall.local", "商家4管理员", UserRole.MERCHANT, 300, "MERCHANT", sony);
+            ensureUser(userRepository, "merchant5", "123", "m5@mall.local", "商家5管理员", UserRole.MERCHANT, 300, "MERCHANT", nike);
+            ensureUser(userRepository, "merchant6", "123", "m6@mall.local", "商家6管理员", UserRole.MERCHANT, 300, "MERCHANT", fresh);
+            ensureUser(userRepository, "demo", "123", "demo@mall.local", "演示用户", UserRole.USER, 260, "GOLD", digital);
+            ensureUser(userRepository, "user_alice", "123", "alice@mall.local", "爱丽丝", UserRole.USER, 100, "SILVER", apple);
+            ensureUser(userRepository, "user_bob", "123", "bob@mall.local", "鲍勃", UserRole.USER, 50, "BASIC", sony);
+            ensureUser(userRepository, "user_charlie", "123", "charlie@mall.local", "查理", UserRole.USER, 500, "PLATINUM", nike);
             userRepository.findAll().forEach(item -> {
                 boolean changed = false;
                 if (item.getPoints() == null) {
@@ -98,32 +125,32 @@ public class DataInitializer {
             });
 
             if (categoryRepository.count() == 0) {
-                categoryRepository.saveAll(List.of(category("Digital", 1), category("Fashion", 2), category("Home", 3)));
+                categoryRepository.saveAll(List.of(category("数码", 1), category("服饰", 2), category("家居", 3)));
             }
 
             if (productRepository.count() == 0) {
                 List<Category> categories = categoryRepository.findAllByOrderBySortOrderAscIdAsc();
-                Category digital = categories.get(0);
-                Category fashion = categories.get(1);
-                Category home = categories.get(2);
+                Category categoryDigital = categories.get(0);
+                Category categoryFashion = categories.get(1);
+                Category categoryHome = categories.get(2);
 
                 productRepository.saveAll(List.of(
-                        product("Noise Cancelling Headphones", "Comfortable studio sound for daily listening",
+                        product("降噪耳机", "Comfortable studio sound for daily listening",
                                 "A demo product with long battery life and balanced sound signature.",
                                 "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80",
-                                new BigDecimal("799.00"), 50, 24, digital, "Hot Sale"),
+                                new BigDecimal("799.00"), 50, 24, categoryDigital, "Hot Sale", sony),
                         product("4K Smart Monitor", "Crisp panel for work and entertainment",
                                 "27-inch monitor designed for productivity, gaming, and media.",
                                 "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=900&q=80",
-                                new BigDecimal("1699.00"), 20, 15, digital, "Presale"),
+                                new BigDecimal("1699.00"), 20, 15, categoryDigital, "Presale", digital),
                         product("Minimal Sneaker", "Clean everyday design with soft cushioning",
                                 "Modern sneaker with breathable upper and flexible sole.",
                                 "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
-                                new BigDecimal("359.00"), 80, 41, fashion, "Group Buy"),
+                                new BigDecimal("359.00"), 80, 41, categoryFashion, "Group Buy", nike),
                         product("Ceramic Coffee Set", "Warm-toned tableware for calm mornings",
                                 "Handcrafted feel with durable glazed finish for daily use.",
                                 "https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=900&q=80",
-                                new BigDecimal("229.00"), 65, 12, home, "Bundle")
+                                new BigDecimal("229.00"), 65, 12, categoryHome, "Bundle", lifestyle)
                 ));
             }
 
@@ -134,11 +161,11 @@ public class DataInitializer {
                     changed = true;
                 }
                 if (product.getSpec() == null) {
-                    product.setSpec("Default / Standard");
+                    product.setSpec("默认规格");
                     changed = true;
                 }
                 if (product.getPromotionTag() == null) {
-                    product.setPromotionTag("Home Recommendation");
+                    product.setPromotionTag("首页推荐");
                     changed = true;
                 }
                 if (product.getFavoriteCount() == null) {
@@ -160,8 +187,8 @@ public class DataInitializer {
 
             if (productSkuRepository.count() == 0) {
                 productRepository.findAll().forEach(product -> productSkuRepository.saveAll(List.of(
-                        sku(product, product.getSkuCode() + "-STD", product.getSpec(), product.getPrice(), product.getStock()),
-                        sku(product, product.getSkuCode() + "-PLUS", product.getSpec() + " Plus",
+                        sku(product, product.getSkuCode() + "-标准版", product.getSpec(), product.getPrice(), product.getStock()),
+                        sku(product, product.getSkuCode() + "-PLUS", product.getSpec() + " 升级版",
                                 product.getPrice().add(new BigDecimal("80.00")), Math.max(5, product.getStock() / 2))
                 )));
             }
@@ -169,46 +196,46 @@ public class DataInitializer {
             if (productDetailBlockRepository.count() == 0) {
                 productRepository.findAll().forEach(product -> productDetailBlockRepository.saveAll(List.of(
                         detail(product, "TEXT", product.getDescription(), 1),
-                        detail(product, "TEXT", "Warranty, service and after-sale support are available in the order center.", 2)
+                        detail(product, "TEXT", "订单中心提供质保、维修等售后服务。", 2)
                 )));
             }
 
             if (couponRepository.count() == 0) {
                 couponRepository.saveAll(List.of(
-                        coupon("New User Coupon 30", new BigDecimal("199.00"), new BigDecimal("30.00"), 100),
-                        coupon("Full Reduction 80", new BigDecimal("699.00"), new BigDecimal("80.00"), 50),
-                        coupon("Member Exclusive 120", new BigDecimal("1299.00"), new BigDecimal("120.00"), 30)
+                        coupon("新客30元立减券", new BigDecimal("199.00"), new BigDecimal("30.00"), 100),
+                        coupon("满699减80元券", new BigDecimal("699.00"), new BigDecimal("80.00"), 50),
+                        coupon("会员专享120元券", new BigDecimal("1299.00"), new BigDecimal("120.00"), 30)
                 ));
             }
 
             if (memberMessageRepository.count() == 0) {
                 UserAccount user = userRepository.findByUsername("demo").orElseThrow();
                 memberMessageRepository.saveAll(List.of(
-                        message(user, "New user gift is ready", "Coupons, points and member rights are ready for demo."),
-                        message(user, "Order fulfillment reminder", "After payment you can view logistics and after-sale entry.")
+                        message(user, "新客礼包已到账", "优惠券、积分和会员权益已发放到演示账户。"),
+                        message(user, "订单发货提醒", "付款后您可以查看物流详情和售后入口。")
                 ));
             }
 
             if (marketingActivityRepository.count() == 0) {
                 marketingActivityRepository.saveAll(List.of(
-                        activity("618 Full Reduction Venue", "FULL_REDUCTION", "Spend 699 save 80, can stack member points.", "APPROVED"),
-                        activity("Digital Flash Sale", "SECKILL", "Limited stock, independent seckill stock pool, user rate limit.", "RUNNING"),
-                        activity("Group Buy Growth Campaign", "GROUP_BUY", "Two members form a group, failed group can be refunded.", "PENDING_REVIEW")
+                        activity("618满减主会场", "FULL_REDUCTION", "满699减80，可叠加使用会员积分。", "APPROVED"),
+                        activity("数码限时秒杀", "SECKILL", "限量秒杀，独立库存池，用户限购。", "RUNNING"),
+                        activity("拼团拉新活动", "GROUP_BUY", "两人成团，拼团失败自动退款。", "PENDING_REVIEW")
                 ));
             }
 
             if (systemConfigItemRepository.count() == 0) {
                 systemConfigItemRepository.saveAll(List.of(
-                        config("home_popup", "New user coupon popup", "Home popup configuration"),
-                        config("channel_wechat", "enabled", "WeChat mock payment switch"),
-                        config("content_audit", "manual+keyword", "Content audit strategy")
+                        config("home_popup", "新用户优惠券弹窗", "首页弹窗活动配置"),
+                        config("channel_wechat", "enabled", "微信模拟支付开关"),
+                        config("content_audit", "manual+keyword", "内容审核策略配置")
                 ));
             }
 
             if (platformRiskItemRepository.count() == 0) {
                 platformRiskItemRepository.saveAll(List.of(
-                        risk("merchant-demo", "PRICE_ABNORMAL", "Product price is below platform risk threshold."),
-                        risk("review-10001", "CONTENT_AUDIT", "Review hit sensitive keyword and requires manual review.")
+                        risk("merchant-demo", "PRICE_ABNORMAL", "商品价格低于平台风险阈值。"),
+                        risk("review-10001", "CONTENT_AUDIT", "评论命中敏感词，需要人工审核。")
                 ));
             }
 
@@ -240,12 +267,7 @@ public class DataInitializer {
                 ));
             }
 
-            if (merchantRepository.count() == 0) {
-                merchantRepository.saveAll(List.of(
-                        merchant("Digital Flagship Store", "18800000001", "ACTIVE"),
-                        merchant("Lifestyle Store", "18800000002", "ACTIVE")
-                ));
-            }
+
 
             if (roleDefinitionRepository.count() == 0) {
                 roleDefinitionRepository.saveAll(List.of(
@@ -291,7 +313,7 @@ public class DataInitializer {
     }
 
     private UserAccount user(String username, String password, String email, String displayName,
-                             UserRole role, int points, String level) {
+                             UserRole role, int points, String level, Merchant merchant) {
         UserAccount user = new UserAccount();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
@@ -300,11 +322,12 @@ public class DataInitializer {
         user.setRole(role);
         user.setPoints(points);
         user.setMemberLevel(level);
+        user.setMerchant(merchant);
         return user;
     }
 
     private void ensureUser(UserRepository userRepository, String username, String password, String email,
-                            String displayName, UserRole role, int points, String level) {
+                            String displayName, UserRole role, int points, String level, Merchant merchant) {
         userRepository.findByUsername(username).ifPresentOrElse(existing -> {
             boolean changed = false;
             if (existing.getRole() != role) {
@@ -334,7 +357,7 @@ public class DataInitializer {
             if (changed) {
                 userRepository.save(existing);
             }
-        }, () -> userRepository.save(user(username, password, email, displayName, role, points, level)));
+        }, () -> userRepository.save(user(username, password, email, displayName, role, points, level, merchant)));
     }
 
     private void relaxLegacyUserRoleConstraint(JdbcTemplate jdbcTemplate) {
@@ -353,7 +376,7 @@ public class DataInitializer {
     }
 
     private Product product(String name, String subtitle, String description, String imageUrl,
-                            BigDecimal price, int stock, int sales, Category category, String promotionTag) {
+                            BigDecimal price, int stock, int sales, Category category, String promotionTag, Merchant merchant) {
         Product product = new Product();
         product.setName(name);
         product.setSubtitle(subtitle);
@@ -370,6 +393,7 @@ public class DataInitializer {
         product.setQuestionCount(0);
         product.setRating(new BigDecimal("4.80"));
         product.setCategory(category);
+        product.setMerchant(merchant);
         return product;
     }
 

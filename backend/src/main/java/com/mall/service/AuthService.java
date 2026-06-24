@@ -24,10 +24,10 @@ public class AuthService {
     @Transactional
     public void register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.username())) {
-            throw new BusinessException("Username already exists");
+            throw new BusinessException("用户名已存在");
         }
         if (userRepository.existsByEmail(request.email())) {
-            throw new BusinessException("Email already exists");
+            throw new BusinessException("邮箱已被使用");
         }
 
         UserAccount user = new UserAccount();

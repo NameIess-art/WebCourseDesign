@@ -40,8 +40,8 @@ public class MallController {
     private final OperationService operationService;
 
     @GetMapping("/categories")
-    public ApiResponse<List<CategoryResponse>> categories() {
-        return ApiResponse.success(mallService.categories());
+    public ApiResponse<PageResponse<CategoryResponse>> categories(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(mallService.categories(page, size));
     }
 
     @GetMapping("/products")
@@ -68,8 +68,8 @@ public class MallController {
     }
 
     @GetMapping("/activities")
-    public ApiResponse<List<MarketingActivityResponse>> activities() {
-        return ApiResponse.success(operationService.publicActivities());
+    public ApiResponse<PageResponse<MarketingActivityResponse>> activities(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.success(operationService.publicActivities(page, size));
     }
 
     @GetMapping("/cart")

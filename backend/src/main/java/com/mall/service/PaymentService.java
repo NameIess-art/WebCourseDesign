@@ -16,8 +16,11 @@ import com.mall.repository.OrderRepository;
 import com.mall.repository.PaymentRecordRepository;
 import com.mall.repository.PointRecordRepository;
 import com.mall.repository.UserRepository;
+import com.mall.vo.PageResponse;
 import com.mall.vo.PaymentResponse;
 import com.mall.vo.PointRecordResponse;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -111,11 +114,11 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public List<PointRecordResponse> pointRecords(UserAccount user) {
-        return pointRecordRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+    public PageResponse<PointRecordResponse> pointRecords(UserAccount user, int page, int size) {
+        Page<PointRecordResponse> result = pointRecordRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size))
                 .map(record -> new PointRecordResponse(record.getId(), record.getPoints(),
-                        record.getType(), record.getDescription(), record.getCreatedAt()))
-                .toList();
+                        record.getType(), record.getDescription(), record.getCreatedAt()));
+        return PageResponse.of(result);
     }
 
     private String normalizeChannel(String channel) {

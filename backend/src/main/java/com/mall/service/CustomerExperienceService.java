@@ -37,6 +37,9 @@ import com.mall.vo.MemberProfileResponse;
 import com.mall.vo.ProductQuestionResponse;
 import com.mall.vo.ProductReviewResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import com.mall.vo.PageResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,10 +67,9 @@ public class CustomerExperienceService {
     private final OrderRepository orderRepository;
 
     @Transactional(readOnly = true)
-    public List<AddressResponse> addresses(UserAccount user) {
-        return addressBookRepository.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId()).stream()
-                .map(this::toAddressResponse)
-                .toList();
+    public PageResponse<AddressResponse> addresses(UserAccount user, int page, int size) {
+        Page<AddressResponse> result = addressBookRepository.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId(), PageRequest.of(page, size)).map(this::toAddressResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -102,24 +104,13 @@ public class CustomerExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public List<CouponResponse> coupons(UserAccount user) {
-        Map<Long, UserCoupon> claimed = userCouponRepository.findByUserIdOrderByClaimedAtDesc(user.getId()).stream()
-                .collect(Collectors.toMap(item -> item.getCoupon().getId(), item -> item, (a, b) -> a));
-        return couponRepository.findByActiveTrueOrderByIdDesc().stream()
-                .map(coupon -> {
-                    UserCoupon userCoupon = claimed.get(coupon.getId());
-                    return new CouponResponse(
-                            coupon.getId(),
-                            coupon.getName(),
-                            coupon.getThresholdAmount(),
-                            coupon.getDiscountAmount(),
-                            coupon.getStock(),
-                            userCoupon != null,
-                            userCoupon != null && Boolean.TRUE.equals(userCoupon.getUsed()),
-                            coupon.getValidUntil()
-                    );
-                })
-                .toList();
+    public PageResponse<CouponResponse> coupons(UserAccount user, int page, int size) {
+        Map<Long, UserCoupon> claimed = userCouponRepository.findByUserIdOrderByClaimedAtDesc(user.getId()).stream().collect(Collectors.toMap(item -> item.getCoupon().getId(), item -> item, (a, b) -> a));
+        Page<CouponResponse> result = couponRepository.findByActiveTrueOrderByIdDesc(PageRequest.of(page, size)).map(coupon -> {
+            UserCoupon userCoupon = claimed.get(coupon.getId());
+            return new CouponResponse(coupon.getId(), coupon.getName(), coupon.getThresholdAmount(), coupon.getDiscountAmount(), coupon.getStock(), userCoupon != null, userCoupon != null && Boolean.TRUE.equals(userCoupon.getUsed()), coupon.getValidUntil());
+        });
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -146,10 +137,9 @@ public class CustomerExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public List<FavoriteResponse> favorites(UserAccount user) {
-        return favoriteProductRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(this::toFavoriteResponse)
-                .toList();
+    public PageResponse<FavoriteResponse> favorites(UserAccount user, int page, int size) {
+        Page<FavoriteResponse> result = favoriteProductRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toFavoriteResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -178,11 +168,9 @@ public class CustomerExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductReviewResponse> reviews(Long productId) {
-        return productReviewRepository.findByProductIdOrderByCreatedAtDesc(productId).stream()
-                .map(item -> new ProductReviewResponse(item.getId(), item.getUser().getUsername(),
-                        item.getRating(), item.getContent(), item.getCreatedAt()))
-                .toList();
+    public PageResponse<ProductReviewResponse> reviews(Long productId, int page, int size) {
+        Page<ProductReviewResponse> result = productReviewRepository.findByProductIdOrderByCreatedAtDesc(productId, PageRequest.of(page, size)).map(item -> new ProductReviewResponse(item.getId(), item.getUser().getUsername(), item.getRating(), item.getContent(), item.getCreatedAt()));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -206,11 +194,9 @@ public class CustomerExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductQuestionResponse> questions(Long productId) {
-        return productQuestionRepository.findByProductIdOrderByCreatedAtDesc(productId).stream()
-                .map(item -> new ProductQuestionResponse(item.getId(), item.getUser().getUsername(),
-                        item.getQuestion(), item.getAnswer(), item.getCreatedAt()))
-                .toList();
+    public PageResponse<ProductQuestionResponse> questions(Long productId, int page, int size) {
+        Page<ProductQuestionResponse> result = productQuestionRepository.findByProductIdOrderByCreatedAtDesc(productId, PageRequest.of(page, size)).map(item -> new ProductQuestionResponse(item.getId(), item.getUser().getUsername(), item.getQuestion(), item.getAnswer(), item.getCreatedAt()));
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -245,10 +231,9 @@ public class CustomerExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public List<MemberMessageResponse> messages(UserAccount user) {
-        return memberMessageRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(this::toMessageResponse)
-                .toList();
+    public PageResponse<MemberMessageResponse> messages(UserAccount user, int page, int size) {
+        Page<MemberMessageResponse> result = memberMessageRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toMessageResponse);
+        return PageResponse.of(result);
     }
 
     @Transactional
@@ -291,10 +276,9 @@ public class CustomerExperienceService {
     }
 
     @Transactional(readOnly = true)
-    public List<AfterSaleResponse> afterSales(UserAccount user) {
-        return afterSaleRecordRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(this::toAfterSaleResponse)
-                .toList();
+    public PageResponse<AfterSaleResponse> afterSales(UserAccount user, int page, int size) {
+        Page<AfterSaleResponse> result = afterSaleRecordRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toAfterSaleResponse);
+        return PageResponse.of(result);
     }
 
     private void clearDefaultAddress(UserAccount user) {

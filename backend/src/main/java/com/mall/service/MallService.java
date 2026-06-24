@@ -68,10 +68,10 @@ public class MallService {
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
-    public List<CategoryResponse> categories() {
-        return categoryRepository.findAllByOrderBySortOrderAscIdAsc().stream()
-                .map(category -> new CategoryResponse(category.getId(), category.getName()))
-                .toList();
+    public PageResponse<CategoryResponse> categories(int page, int size) {
+        Page<CategoryResponse> result = categoryRepository.findAllByOrderBySortOrderAscIdAsc(PageRequest.of(page, size))
+                .map(category -> new CategoryResponse(category.getId(), category.getName()));
+        return PageResponse.of(result);
     }
 
     @Transactional(readOnly = true)
