@@ -1,7 +1,9 @@
 package com.mall.service;
 
+import com.mall.dto.ForgotPasswordRequest;
 import com.mall.dto.LoginRequest;
 import com.mall.dto.RegisterRequest;
+import com.mall.dto.UpdateAccountRequest;
 import com.mall.entity.UserAccount;
 import com.mall.enums.UserRole;
 import com.mall.exception.BusinessException;
@@ -12,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -49,5 +53,39 @@ public class AuthService {
 
         String token = jwtService.generateToken(user.getId(), user.getUsername(), user.getRole().name());
         return new AuthResponse(token, user.getId(), user.getUsername(), user.getDisplayName(), user.getRole().name());
+    }
+
+    @Transactional
+    public void updateAccount(Long userId, UpdateAccountRequest request) {
+        UserAccount user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("用户不存在"));
+
+        if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
+            throw new BusinessException("原密码不正确");
+        }
+
+        if (!user.getUsername().equals(request.username())) {
+            if (userRepository.existsByUsername(request.username())) {
+                throw new BusinessException("新用户名已存在");
+            }
+            user.setUsername(request.username());
+            user.setDisplayName(request.username());
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public String forgotPassword(ForgotPasswordRequest request) {
+        UserAccount user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new BusinessException("未找到该邮箱对应的账号"));
+
+        // Generate a random 6-digit password
+        String newPassword = String.format("%06d", new Random().nextInt(1000000));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return newPassword;
     }
 }

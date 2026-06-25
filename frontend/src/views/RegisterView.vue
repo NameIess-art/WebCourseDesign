@@ -12,6 +12,10 @@
           <input v-model="form.password" type="password" autocomplete="new-password" required minlength="6" />
         </label>
         <label>
+          <span>邮箱</span>
+          <input v-model="form.email" type="email" required />
+        </label>
+        <label>
           <span>确认密码</span>
           <input v-model="form.confirmPassword" type="password" autocomplete="new-password" required minlength="6" />
         </label>
@@ -31,6 +35,7 @@ const router = useRouter()
 const loading = ref(false)
 const form = reactive({
   username: '',
+  email: '',
   password: '',
   confirmPassword: ''
 })
@@ -47,7 +52,7 @@ async function submit() {
       username: form.username,
       password: form.password,
       displayName: form.username,
-      email: `${form.username}@mall.local`
+      email: form.email
     }
     await register(payload)
     window.alert('注册成功，请登录。')

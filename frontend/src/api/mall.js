@@ -55,3 +55,6 @@ export const getAfterSales = (page = 0, size = 10) => http.get('/after-sales', {
 
 export const getSeckillEvents = (page = 0, size = 10) => http.get('/seckill-events', { params: { page, size } })
 export const purchaseSeckill = (id) => http.post(`/seckill-events/${id}/purchase`)
+
+export const updateAccount = (payload) => http.put('/auth/account', payload)
+export const forgotPassword = (payload) => http.post('/auth/forgot-password', payload)

@@ -68,6 +68,7 @@
         <div class="user-area">
           <template v-if="user">
             <span>{{ user.username }}</span>
+            <button class="ghost-button" @click="accountModalOpen = true">设置</button>
             <button class="ghost-button" @click="logout">退出</button>
           </template>
           <template v-else>
@@ -81,6 +82,34 @@
         <slot />
       </main>
     </div>
+
+    <div v-if="accountModalOpen" class="modal-scrim">
+      <div class="modal-content">
+        <h2>修改账号信息</h2>
+        <form @submit.prevent="submitAccountUpdate">
+          <label>
+            <span>新用户名</span>
+            <input v-model="accountForm.username" required />
+          </label>
+          <label>
+            <span>原密码</span>
+            <input v-model="accountForm.oldPassword" type="password" required />
+          </label>
+          <label>
+            <span>新密码</span>
+            <input v-model="accountForm.newPassword" type="password" required minlength="6" />
+          </label>
+          <label>
+            <span>确认新密码</span>
+            <input v-model="accountForm.confirmPassword" type="password" required minlength="6" />
+          </label>
+          <div class="modal-actions">
+            <button type="button" class="ghost-button" @click="accountModalOpen = false">取消</button>
+            <button type="submit" class="accent-button">保存修改</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -88,6 +117,44 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { clearAuth, getUser } from '../utils/auth'
+import { updateAccount } from '../api/mall'
+import { reactive } from 'vue'
+
+const accountModalOpen = ref(false)
+const accountForm = reactive({
+  username: '',
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+watch(() => accountModalOpen.value, (isOpen) => {
+  if (isOpen) {
+    accountForm.username = user.value?.username || ''
+    accountForm.oldPassword = ''
+    accountForm.newPassword = ''
+    accountForm.confirmPassword = ''
+  }
+})
+
+async function submitAccountUpdate() {
+  if (accountForm.newPassword !== accountForm.confirmPassword) {
+    window.alert('两次输入的新密码不一致')
+    return
+  }
+  try {
+    await updateAccount({
+      username: accountForm.username,
+      oldPassword: accountForm.oldPassword,
+      newPassword: accountForm.newPassword
+    })
+    window.alert('账号信息修改成功，请重新登录。')
+    accountModalOpen.value = false
+    logout()
+  } catch (error) {
+    window.alert(error)
+  }
+}
 
 const router = useRouter()
 const route = useRoute()
