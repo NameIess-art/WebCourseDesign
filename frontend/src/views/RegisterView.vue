@@ -41,6 +41,7 @@ const form = reactive({
 })
 
 async function submit() {
+  // 前端先校验两次密码是否一致，避免明显错误请求进入后端。
   if (form.password !== form.confirmPassword) {
     window.alert('两次输入的密码不一致，请重新输入')
     return
@@ -48,12 +49,14 @@ async function submit() {
 
   loading.value = true
   try {
+    // 注册接口只需要用户名、密码、邮箱和展示名，确认密码不传给后端。
     const payload = {
       username: form.username,
       password: form.password,
       displayName: form.username,
       email: form.email
     }
+    // 后端还会继续校验字段格式、用户名唯一性和邮箱唯一性。
     await register(payload)
     window.alert('注册成功，请登录。')
     router.push('/login')

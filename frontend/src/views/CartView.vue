@@ -99,6 +99,7 @@ const payableAmount = computed(() => Math.max(
 ).toFixed(2))
 
 async function loadCart() {
+  // 购物车、优惠券、会员信息、地址簿同时加载，用于计算结算金额。
   const [cartRes, couponRes, profileRes, addressRes] = await Promise.all([
     getCart(),
     getCoupons(),
@@ -116,6 +117,7 @@ async function loadCart() {
 }
 
 function syncAddress() {
+  // 用户选择地址簿记录后，拼成后端订单需要保存的收货地址文本。
   const address = addresses.value.find(item => item.id === selectedAddressId.value)
   if (address) {
     shippingAddress.value = `${address.receiver} ${address.phone} ${address.region} ${address.detail}`
@@ -124,6 +126,7 @@ function syncAddress() {
 
 async function changeQty(item) {
   try {
+    // 修改数量只提交新的数量，后端会校验购物车归属和库存上限。
     await updateCart(item.id, item.quantity)
     await loadCart()
   } catch (error) {
@@ -139,8 +142,10 @@ async function remove(id) {
 }
 
 async function submitOrder() {
+  // 提交订单期间禁用按钮，配合幂等键降低重复提交风险。
   submitting.value = true
   try {
+    // 结算请求体包含地址、优惠券、积分和幂等键，后端在事务中生成订单。
     await checkout({
       shippingAddress: shippingAddress.value,
       couponId: couponId.value,

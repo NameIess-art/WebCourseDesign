@@ -2,7 +2,7 @@ export function formatStatus(status) {
   if (!status) return '未知'
   
   const map = {
-    // Orders & AfterSales
+    // 订单与售后
     'UNPAID': '未支付',
     'PAID': '已支付',
     'SHIPPED': '已发货',
@@ -14,13 +14,13 @@ export function formatStatus(status) {
     'APPROVED': '已通过',
     'REJECTED': '已拒绝',
     
-    // Audits & Activities
+    // 审核与活动
     'ACTIVE': '正常',
     'INACTIVE': '已禁用',
     'RUNNING': '进行中',
     'PENDING_REVIEW': '待审核',
     
-    // Types & Others
+    // 类型与其他
     'TEXT': '文本',
     'IMAGE': '图片',
     'MERCHANT': '商家',

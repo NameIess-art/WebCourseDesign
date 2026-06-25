@@ -2,11 +2,13 @@ import http from './http'
 
 export const getDashboard = () => http.get('/admin/dashboard')
 
+// 商品管理：商家后台提交的对象会映射到后端商品请求体。
 export const getAdminProducts = (page = 0, size = 10) => http.get('/admin/products', { params: { page, size } })
 export const createProduct = (payload) => http.post('/admin/products', payload)
 export const updateProduct = (id, payload) => http.put(`/admin/products/${id}`, payload)
 export const deleteProduct = (id) => http.delete(`/admin/products/${id}`)
 
+// 订单管理：状态筛选通过查询参数传递，发货、审核、改价通过订单编号操作。
 export const getAdminOrders = (status, page = 0, size = 10) =>
   http.get('/admin/orders', { params: { status, page, size } })
 export const shipOrder = (id) => http.patch(`/admin/orders/${id}/ship`)

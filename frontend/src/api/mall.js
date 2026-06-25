@@ -1,8 +1,10 @@
 import http from './http'
 
+// 登录、注册：表单数据以请求体传给后端认证接口。
 export const login = (payload) => http.post('/auth/login', payload)
 export const register = (payload) => http.post('/auth/register', payload)
 
+// 商品浏览：查询条件放在地址参数中，后端按关键字、分类和分页组合查询。
 export const getCategories = (page = 0, size = 10) => http.get('/categories', { params: { page, size } })
 export const getProducts = (keyword, categoryId, page = 0, size = 20) =>
   http.get('/products', { params: { keyword, categoryId, page, size } })
@@ -11,12 +13,14 @@ export const suggestSearch = (keyword) => http.get('/search/suggest', { params: 
 export const getRecommendations = (page = 0, size = 10) => http.get('/recommendations', { params: { page, size } })
 export const getActivities = (page = 0, size = 10) => http.get('/activities', { params: { page, size } })
 
+// 购物车和结算：加购发送商品、规格、数量；结算发送地址、优惠券、积分和幂等键。
 export const getCart = (page = 0, size = 10) => http.get('/cart', { params: { page, size } })
 export const addCart = (payload) => http.post('/cart', payload)
 export const updateCart = (id, quantity) => http.put(`/cart/${id}`, { quantity })
 export const removeCart = (id) => http.delete(`/cart/${id}`)
 export const checkout = (payload) => http.post('/orders/checkout', payload)
 
+// 订单状态操作：支付、取消、确认收货都通过路径中的订单编号定位目标订单。
 export const getOrders = (page = 0, size = 20) => http.get('/orders', { params: { page, size } })
 export const payOrder = (id) => http.patch(`/orders/${id}/pay`)
 export const cancelOrder = (id) => http.patch(`/orders/${id}/cancel`)

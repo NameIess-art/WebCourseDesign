@@ -120,12 +120,15 @@ public class AdminService {
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
         Long merchantId = requireMerchantId();
+        // 商品只接收分类编号，保存前先确认分类真实存在。
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException("Category not found"));
         Product product = new Product();
+        // 商品归属当前商家上下文，避免前端伪造商家编号。
         product.setMerchant(merchantRepository.findById(merchantId).orElseThrow());
         updateFields(product, request, category);
         Product saved = productRepository.save(product);
+        // 主表有编号后，再保存依赖商品编号的规格和详情段落。
         syncProductChildren(saved, request);
         return toProductResponse(saved);
     }
@@ -134,10 +137,12 @@ public class AdminService {
     public ProductResponse updateProduct(Long id, ProductRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Product not found"));
+        // 更新时同样重新加载分类，防止提交不存在的分类编号。
         Category category = categoryRepository.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException("Category not found"));
         updateFields(product, request, category);
         Product saved = productRepository.save(product);
+        // 子表采用“先删后建”的同步方式，保证数据库内容与本次表单完全一致。
         syncProductChildren(saved, request);
         return toProductResponse(saved);
     }
@@ -271,6 +276,7 @@ public class AdminService {
     }
 
     private void updateFields(Product product, ProductRequest request, Category category) {
+        // 将请求体中的商品主字段集中写入实体，创建和编辑共用同一套赋值逻辑。
         product.setName(request.name());
         product.setSubtitle(request.subtitle());
         product.setDescription(request.description());
@@ -282,6 +288,7 @@ public class AdminService {
         if (product.getSales() == null) {
             product.setSales(0);
         }
+        // 可选展示字段为空时补默认值，避免前端商品卡片出现空白。
         product.setSkuCode(request.skuCode() == null || request.skuCode().isBlank()
                 ? "SKU-" + System.currentTimeMillis() : request.skuCode());
         product.setSpec(request.spec() == null || request.spec().isBlank() ? "Standard" : request.spec());
@@ -299,6 +306,7 @@ public class AdminService {
     }
 
     private void syncProductChildren(Product product, ProductRequest request) {
+        // 规格子表不做局部增删改，直接按本次提交结果重建，逻辑更简单清晰。
         productSkuRepository.deleteAll(productSkuRepository.findByProductIdOrderByIdAsc(product.getId()));
         List<ProductSku> skus = request.skus() == null || request.skus().isEmpty()
                 ? List.of(defaultSku(product))
@@ -314,6 +322,7 @@ public class AdminService {
                 }).toList();
         productSkuRepository.saveAll(skus);
 
+        // 图文详情段落同样与表单保持一致，排序值用于前端按顺序展示。
         productDetailBlockRepository.deleteAll(
                 productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId()));
         List<ProductDetailBlock> blocks = request.detailBlocks() == null || request.detailBlocks().isEmpty()

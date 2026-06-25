@@ -364,7 +364,7 @@ public class DataInitializer {
         try {
             jdbcTemplate.execute("alter table users alter column role varchar(32) not null");
         } catch (Exception ignored) {
-            // Non-H2 databases or fresh schemas may not need this compatibility migration.
+            // 非内存演示数据库或全新表结构可能不需要这段兼容迁移。
         }
     }
 

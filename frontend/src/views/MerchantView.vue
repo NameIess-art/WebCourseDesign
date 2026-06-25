@@ -301,7 +301,7 @@ async function loadData() {
       const merchantRes = await getMerchants()
       merchantsList.value = merchantRes.data || { content: [], page: 0, totalPages: 0 }
       
-      // Default to first merchant if none selected
+      // 如果还没有选择商家，默认选择第一个商家。
       if (!selectedMerchantId.value && merchantsList.value.length > 0) {
         selectedMerchantId.value = merchantsList.value[0].id
       }
@@ -315,7 +315,7 @@ async function loadData() {
   } else {
     localStorage.removeItem('merchantId')
     if (user.value?.role === 'ADMIN') {
-      return // Admin must have a merchant selected to proceed
+      return // 管理员必须先选择一个商家才能继续操作。
     }
   }
 
@@ -383,6 +383,7 @@ function removeDetailBlock(index) {
 
 async function saveProduct() {
   await runAction(editingProductId.value ? '商品已保存' : '商品已创建', async () => {
+    // 商品表单对象与后端商品请求体一致，包含主字段、规格列表和详情段落。
     if (editingProductId.value) await updateProduct(editingProductId.value, productForm)
     else await createProduct(productForm)
     resetProduct()

@@ -120,10 +120,12 @@ const selectedSku = computed(() => product.value?.skus?.find(item => item.id ===
 const canBuy = computed(() => product.value && (selectedSku.value?.stock ?? product.value.stock) > 0)
 
 watch(product, (value) => {
+  // 商品加载完成后默认选中第一个可购买规格，方便用户直接加购。
   selectedSkuId.value = value?.skus?.find(item => item.active && item.stock > 0)?.id || value?.skus?.[0]?.id || null
 })
 
 async function loadProduct() {
+  // 商品详情、评价和问答互不依赖，可以并发加载减少等待时间。
   const [productRes, reviewRes, questionRes] = await Promise.all([
     getProduct(route.params.id),
     getProductReviews(route.params.id),
@@ -135,16 +137,19 @@ async function loadProduct() {
 }
 
 async function add() {
+  // 加入购物车必须登录，因为后端购物车数据按用户编号保存。
   if (!getToken()) {
     window.alert('请先登录。')
     return
   }
+  // 前端做数量范围预校验，后端仍会基于数据库库存再次校验。
   const stock = selectedSku.value?.stock ?? product.value.stock
   if (quantity.value < 1 || quantity.value > stock) {
     window.alert('请输入有效的购买数量。')
     return
   }
   try {
+    // 请求体与后端加入购物车请求对象对应：商品编号、规格编号、购买数量。
     await addCart({ productId: product.value.id, skuId: selectedSku.value?.id ?? null, quantity: quantity.value })
     window.alert('已加入购物车。')
   } catch (error) {

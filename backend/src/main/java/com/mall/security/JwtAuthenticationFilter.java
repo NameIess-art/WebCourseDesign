@@ -31,11 +31,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {
+            // 未携带登录令牌时直接放行，后续安全配置会决定该接口是否需要登录。
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
+            // 解析令牌中的用户名，并加载完整用户对象写入安全上下文。
             Claims claims = jwtService.parseToken(header.substring(7));
             String username = claims.getSubject();
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -47,10 +49,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
                     );
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // 控制器会从这里拿到当前登录用户。
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
         } catch (Exception ignored) {
+            // 令牌无效时不在过滤器中抛出异常，由安全框架统一返回未认证结果。
         }
 
         filterChain.doFilter(request, response);

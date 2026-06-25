@@ -47,12 +47,14 @@ public class AdminController {
 
     @PostMapping("/products")
     public ApiResponse<ProductResponse> createProduct(@Valid @RequestBody ProductRequest request) {
+        // 商家后台提交商品表单，控制器先校验字段，再交给服务层保存主表和子表。
         return ApiResponse.success(adminService.createProduct(request));
     }
 
     @PutMapping("/products/{id}")
     public ApiResponse<ProductResponse> updateProduct(@PathVariable Long id,
                                                       @Valid @RequestBody ProductRequest request) {
+        // 路径编号指定要修改的商品，请求体携带新的商品、规格和详情数据。
         return ApiResponse.success(adminService.updateProduct(id, request));
     }
 
@@ -66,6 +68,7 @@ public class AdminController {
     public ApiResponse<PageResponse<OrderResponse>> orders(@RequestParam(required = false) String status,
                                                            @RequestParam(defaultValue = "0") int page,
                                                            @RequestParam(defaultValue = "50") int size) {
+        // 订单列表按当前商家上下文过滤，管理员可通过请求头切换查看的商家。
         return ApiResponse.success(adminService.orders(status, page, size));
     }
 
