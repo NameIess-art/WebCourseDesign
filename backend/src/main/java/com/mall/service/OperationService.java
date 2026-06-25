@@ -18,20 +18,20 @@ import com.mall.entity.RoleDefinition;
 import com.mall.entity.SystemConfigItem;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
-import com.mall.repository.AnnouncementRepository;
-import com.mall.repository.ContentAuditItemRepository;
-import com.mall.repository.DictionaryItemRepository;
-import com.mall.repository.MarketingActivityRepository;
-import com.mall.repository.MarketingFlowRecordRepository;
-import com.mall.repository.MerchantPenaltyRepository;
-import com.mall.repository.MerchantRepository;
-import com.mall.repository.OrderRepository;
-import com.mall.repository.PermissionItemRepository;
-import com.mall.repository.PlatformRiskItemRepository;
-import com.mall.repository.ProductRepository;
-import com.mall.repository.PromotionRuleRepository;
-import com.mall.repository.RoleDefinitionRepository;
-import com.mall.repository.SystemConfigItemRepository;
+import com.mall.mapper.AnnouncementMapper;
+import com.mall.mapper.ContentAuditItemMapper;
+import com.mall.mapper.DictionaryItemMapper;
+import com.mall.mapper.MarketingActivityMapper;
+import com.mall.mapper.MarketingFlowRecordMapper;
+import com.mall.mapper.MerchantPenaltyMapper;
+import com.mall.mapper.MerchantMapper;
+import com.mall.mapper.OrderMapper;
+import com.mall.mapper.PermissionItemMapper;
+import com.mall.mapper.PlatformRiskItemMapper;
+import com.mall.mapper.ProductMapper;
+import com.mall.mapper.PromotionRuleMapper;
+import com.mall.mapper.RoleDefinitionMapper;
+import com.mall.mapper.SystemConfigItemMapper;
 import com.mall.vo.HighConcurrencyResponse;
 import com.mall.vo.MarketingActivityResponse;
 import com.mall.vo.OperationBoardResponse;
@@ -54,20 +54,20 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OperationService {
 
-    private final MarketingActivityRepository marketingActivityRepository;
-    private final SystemConfigItemRepository systemConfigItemRepository;
-    private final PlatformRiskItemRepository platformRiskItemRepository;
-    private final OrderRepository orderRepository;
-    private final ProductRepository productRepository;
-    private final DictionaryItemRepository dictionaryItemRepository;
-    private final AnnouncementRepository announcementRepository;
-    private final MerchantRepository merchantRepository;
-    private final MerchantPenaltyRepository merchantPenaltyRepository;
-    private final RoleDefinitionRepository roleDefinitionRepository;
-    private final PermissionItemRepository permissionItemRepository;
-    private final ContentAuditItemRepository contentAuditItemRepository;
-    private final PromotionRuleRepository promotionRuleRepository;
-    private final MarketingFlowRecordRepository marketingFlowRecordRepository;
+    private final MarketingActivityMapper marketingActivityMapper;
+    private final SystemConfigItemMapper systemConfigItemMapper;
+    private final PlatformRiskItemMapper platformRiskItemMapper;
+    private final OrderMapper orderMapper;
+    private final ProductMapper productMapper;
+    private final DictionaryItemMapper dictionaryItemMapper;
+    private final AnnouncementMapper announcementMapper;
+    private final MerchantMapper merchantMapper;
+    private final MerchantPenaltyMapper merchantPenaltyMapper;
+    private final RoleDefinitionMapper roleDefinitionMapper;
+    private final PermissionItemMapper permissionItemMapper;
+    private final ContentAuditItemMapper contentAuditItemMapper;
+    private final PromotionRuleMapper promotionRuleMapper;
+    private final MarketingFlowRecordMapper marketingFlowRecordMapper;
 
     public OperationBoardResponse board() {
         return new OperationBoardResponse(
@@ -88,13 +88,13 @@ public class OperationService {
 
     @Transactional(readOnly = true)
     public PageResponse<MarketingActivityResponse> activities(int page, int size) {
-        Page<MarketingActivityResponse> result = marketingActivityRepository.findAllByOrderByStartAtDesc(PageRequest.of(page, size)).map(this::toActivityResponse);
+        Page<MarketingActivityResponse> result = marketingActivityMapper.findAllByOrderByStartAtDesc(PageRequest.of(page, size)).map(this::toActivityResponse);
         return PageResponse.of(result);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<MarketingActivityResponse> publicActivities(int page, int size) {
-        Page<MarketingActivityResponse> result = marketingActivityRepository.findByStatusIgnoreCaseOrderByStartAtDesc("APPROVED", PageRequest.of(page, size)).map(this::toActivityResponse);
+        Page<MarketingActivityResponse> result = marketingActivityMapper.findByStatusIgnoreCaseOrderByStartAtDesc("APPROVED", PageRequest.of(page, size)).map(this::toActivityResponse);
         return PageResponse.of(result);
     }
 
@@ -112,46 +112,46 @@ public class OperationService {
         activity.setStatus(autoApprove ? "APPROVED" : "PENDING_REVIEW");
         activity.setStartAt(autoApprove ? LocalDateTime.now() : LocalDateTime.now().plusHours(2));
         activity.setEndAt(LocalDateTime.now().plusDays(7));
-        return toActivityResponse(marketingActivityRepository.save(activity));
+        return toActivityResponse(marketingActivityMapper.save(activity));
     }
 
     @Transactional
     public MarketingActivityResponse auditActivity(Long id, boolean approved) {
-        MarketingActivity activity = marketingActivityRepository.findById(id)
+        MarketingActivity activity = marketingActivityMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Activity not found"));
         activity.setStatus(approved ? "APPROVED" : "REJECTED");
-        return toActivityResponse(marketingActivityRepository.save(activity));
+        return toActivityResponse(marketingActivityMapper.save(activity));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SystemConfigResponse> configs(int page, int size) {
-        Page<SystemConfigResponse> result = systemConfigItemRepository.findAll(PageRequest.of(page, size)).map(this::toConfigResponse);
+        Page<SystemConfigResponse> result = systemConfigItemMapper.findAll(PageRequest.of(page, size)).map(this::toConfigResponse);
         return PageResponse.of(result);
     }
 
     @Transactional
     public SystemConfigResponse upsertConfig(String key, ConfigRequest request) {
-        SystemConfigItem item = systemConfigItemRepository.findByConfigKey(key).orElseGet(SystemConfigItem::new);
+        SystemConfigItem item = systemConfigItemMapper.findByConfigKey(key).orElseGet(SystemConfigItem::new);
         item.setConfigKey(key);
         item.setConfigValue(request.value());
         item.setDescription(request.description());
-        return toConfigResponse(systemConfigItemRepository.save(item));
+        return toConfigResponse(systemConfigItemMapper.save(item));
     }
 
     @Transactional
     public void deleteConfig(String key) {
-        systemConfigItemRepository.findByConfigKey(key).ifPresent(systemConfigItemRepository::delete);
+        systemConfigItemMapper.findByConfigKey(key).ifPresent(systemConfigItemMapper::delete);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<PlatformRiskResponse> risks(int page, int size) {
-        Page<PlatformRiskResponse> result = platformRiskItemRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size)).map(this::toRiskResponse);
+        Page<PlatformRiskResponse> result = platformRiskItemMapper.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size)).map(this::toRiskResponse);
         return PageResponse.of(result);
     }
 
     @Transactional
     public PlatformRiskResponse resolveRisk(Long id) {
-        PlatformRiskItem item = platformRiskItemRepository.findById(id)
+        PlatformRiskItem item = platformRiskItemMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Risk item not found"));
         item.setStatus("RESOLVED");
         return toRiskResponse(item);
@@ -160,9 +160,9 @@ public class OperationService {
     @Transactional(readOnly = true)
     public ReportResponse reports() {
         List<OrderStatus> revenueStatuses = List.of(OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.COMPLETED);
-        BigDecimal revenue = orderRepository.sumTotalAmountByStatusIn(revenueStatuses);
-        int stockWarningCount = (int) productRepository.countByStockLessThanEqual(10);
-        long orders = orderRepository.count();
+        BigDecimal revenue = orderMapper.sumTotalAmountByStatusIn(revenueStatuses);
+        int stockWarningCount = (int) productMapper.countByStockLessThanEqual(10);
+        long orders = orderMapper.count();
         return new ReportResponse(
                 Math.max(1200L, orders * 37),
                 orders,
@@ -187,7 +187,7 @@ public class OperationService {
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> dictionaries(int page, int size) {
-        Page<SimpleItemResponse> result = dictionaryItemRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getDictKey(), item.getDictType(), item.getDictValue(), "ACTIVE"));
+        Page<SimpleItemResponse> result = dictionaryItemMapper.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getDictKey(), item.getDictType(), item.getDictValue(), "ACTIVE"));
         return PageResponse.of(result);
     }
 
@@ -197,19 +197,19 @@ public class OperationService {
         item.setDictType(request.type());
         item.setDictKey(request.title());
         item.setDictValue(request.content());
-        DictionaryItem saved = dictionaryItemRepository.save(item);
+        DictionaryItem saved = dictionaryItemMapper.save(item);
         return new SimpleItemResponse(saved.getId(), saved.getDictKey(), saved.getDictType(),
                 saved.getDictValue(), "ACTIVE");
     }
 
     @Transactional
     public void deleteDictionary(Long id) {
-        dictionaryItemRepository.deleteById(id);
+        dictionaryItemMapper.deleteById(id);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> announcements(int page, int size) {
-        Page<SimpleItemResponse> result = announcementRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getTitle(), item.getPopup() ? "POPUP" : "NOTICE", item.getContent(), "ACTIVE"));
+        Page<SimpleItemResponse> result = announcementMapper.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getTitle(), item.getPopup() ? "POPUP" : "NOTICE", item.getContent(), "ACTIVE"));
         return PageResponse.of(result);
     }
 
@@ -220,19 +220,19 @@ public class OperationService {
         item.setContent(request.content());
         item.setPopup("POPUP".equalsIgnoreCase(request.type()));
         item.setCreatedAt(LocalDateTime.now());
-        Announcement saved = announcementRepository.save(item);
+        Announcement saved = announcementMapper.save(item);
         return new SimpleItemResponse(saved.getId(), saved.getTitle(), saved.getPopup() ? "POPUP" : "NOTICE",
                 saved.getContent(), "ACTIVE");
     }
 
     @Transactional
     public void deleteAnnouncement(Long id) {
-        announcementRepository.deleteById(id);
+        announcementMapper.deleteById(id);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> merchants(int page, int size) {
-        Page<SimpleItemResponse> result = merchantRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), "MERCHANT", item.getContactPhone(), item.getStatus()));
+        Page<SimpleItemResponse> result = merchantMapper.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), "MERCHANT", item.getContactPhone(), item.getStatus()));
         return PageResponse.of(result);
     }
 
@@ -243,29 +243,29 @@ public class OperationService {
         merchant.setContactPhone(request.content());
         merchant.setStatus(request.type() == null || request.type().isBlank() ? "ACTIVE" : request.type());
         merchant.setCreatedAt(LocalDateTime.now());
-        Merchant saved = merchantRepository.save(merchant);
+        Merchant saved = merchantMapper.save(merchant);
         return new SimpleItemResponse(saved.getId(), saved.getName(), "MERCHANT", saved.getContactPhone(), saved.getStatus());
     }
 
     @Transactional
     public SimpleItemResponse updateMerchantStatus(Long id, String status) {
-        Merchant merchant = merchantRepository.findById(id)
+        Merchant merchant = merchantMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Merchant not found"));
         merchant.setStatus(status);
-        Merchant saved = merchantRepository.save(merchant);
+        Merchant saved = merchantMapper.save(merchant);
         return new SimpleItemResponse(saved.getId(), saved.getName(), "MERCHANT", saved.getContactPhone(), saved.getStatus());
     }
 
     @Transactional
     public SimpleItemResponse penalizeMerchant(Long id, AdminTextRequest request) {
-        Merchant merchant = merchantRepository.findById(id)
+        Merchant merchant = merchantMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Merchant not found"));
         MerchantPenalty penalty = new MerchantPenalty();
         penalty.setMerchant(merchant);
         penalty.setPenaltyType(request.type());
         penalty.setReason(request.content());
         penalty.setCreatedAt(LocalDateTime.now());
-        MerchantPenalty saved = merchantPenaltyRepository.save(penalty);
+        MerchantPenalty saved = merchantPenaltyMapper.save(penalty);
         merchant.setStatus("PENALIZED");
         return new SimpleItemResponse(saved.getId(), merchant.getName(), saved.getPenaltyType(),
                 saved.getReason(), merchant.getStatus());
@@ -273,7 +273,7 @@ public class OperationService {
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> roles(int page, int size) {
-        Page<SimpleItemResponse> result = roleDefinitionRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getCode(), "menus=" + item.getMenuPermissions() + "; buttons=" + item.getButtonPermissions(), "ACTIVE"));
+        Page<SimpleItemResponse> result = roleDefinitionMapper.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getCode(), "menus=" + item.getMenuPermissions() + "; buttons=" + item.getButtonPermissions(), "ACTIVE"));
         return PageResponse.of(result);
     }
 
@@ -284,13 +284,13 @@ public class OperationService {
         role.setName(request.type());
         role.setMenuPermissions(request.content());
         role.setButtonPermissions(request.content());
-        RoleDefinition saved = roleDefinitionRepository.save(role);
+        RoleDefinition saved = roleDefinitionMapper.save(role);
         return new SimpleItemResponse(saved.getId(), saved.getName(), saved.getCode(), saved.getMenuPermissions(), "ACTIVE");
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> permissions(int page, int size) {
-        Page<SimpleItemResponse> result = permissionItemRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getPermissionType(), item.getCode(), "ACTIVE"));
+        Page<SimpleItemResponse> result = permissionItemMapper.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getName(), item.getPermissionType(), item.getCode(), "ACTIVE"));
         return PageResponse.of(result);
     }
 
@@ -300,13 +300,13 @@ public class OperationService {
         permission.setCode(request.title());
         permission.setName(request.content());
         permission.setPermissionType(request.type());
-        PermissionItem saved = permissionItemRepository.save(permission);
+        PermissionItem saved = permissionItemMapper.save(permission);
         return new SimpleItemResponse(saved.getId(), saved.getName(), saved.getPermissionType(), saved.getCode(), "ACTIVE");
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> contentAudits(int page, int size) {
-        Page<SimpleItemResponse> result = contentAuditItemRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getTarget(), item.getContentType(), item.getContent(), item.getStatus()));
+        Page<SimpleItemResponse> result = contentAuditItemMapper.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getTarget(), item.getContentType(), item.getContent(), item.getStatus()));
         return PageResponse.of(result);
     }
 
@@ -318,24 +318,24 @@ public class OperationService {
         item.setContent(request.content());
         item.setStatus("PENDING");
         item.setCreatedAt(LocalDateTime.now());
-        ContentAuditItem saved = contentAuditItemRepository.save(item);
+        ContentAuditItem saved = contentAuditItemMapper.save(item);
         return new SimpleItemResponse(saved.getId(), saved.getTarget(), saved.getContentType(),
                 saved.getContent(), saved.getStatus());
     }
 
     @Transactional
     public SimpleItemResponse auditContent(Long id, boolean approved) {
-        ContentAuditItem item = contentAuditItemRepository.findById(id)
+        ContentAuditItem item = contentAuditItemMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Content audit item not found"));
         item.setStatus(approved ? "APPROVED" : "REJECTED");
-        ContentAuditItem saved = contentAuditItemRepository.save(item);
+        ContentAuditItem saved = contentAuditItemMapper.save(item);
         return new SimpleItemResponse(saved.getId(), saved.getTarget(), saved.getContentType(),
                 saved.getContent(), saved.getStatus());
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> promotionRules(int page, int size) {
-        Page<SimpleItemResponse> result = promotionRuleRepository.findAll(PageRequest.of(page, size)).map(this::toPromotion);
+        Page<SimpleItemResponse> result = promotionRuleMapper.findAll(PageRequest.of(page, size)).map(this::toPromotion);
         return PageResponse.of(result);
     }
 
@@ -349,12 +349,12 @@ public class OperationService {
         rule.setRuleText(request.ruleText());
         rule.setStatus("ACTIVE");
         rule.setCreatedAt(LocalDateTime.now());
-        return toPromotion(promotionRuleRepository.save(rule));
+        return toPromotion(promotionRuleMapper.save(rule));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> marketingFlows(int page, int size) {
-        Page<SimpleItemResponse> result = marketingFlowRecordRepository.findAll(PageRequest.of(page, size)).map(this::toFlow);
+        Page<SimpleItemResponse> result = marketingFlowRecordMapper.findAll(PageRequest.of(page, size)).map(this::toFlow);
         return PageResponse.of(result);
     }
 
@@ -367,15 +367,15 @@ public class OperationService {
         flow.setStatus("RUNNING");
         flow.setDescription(request.content());
         flow.setCreatedAt(LocalDateTime.now());
-        return toFlow(marketingFlowRecordRepository.save(flow));
+        return toFlow(marketingFlowRecordMapper.save(flow));
     }
 
     @Transactional(readOnly = true)
     public List<SimpleItemResponse> analytics(String type) {
-        BigDecimal revenue = orderRepository.sumTotalAmountByStatusIn(
+        BigDecimal revenue = orderMapper.sumTotalAmountByStatusIn(
                 List.of(OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.COMPLETED));
-        long products = productRepository.count();
-        long orders = orderRepository.count();
+        long products = productMapper.count();
+        long orders = orderMapper.count();
         return List.of(
                 new SimpleItemResponse(1L, "Revenue", "ANALYTICS", revenue.toPlainString(), type == null ? "ALL" : type),
                 new SimpleItemResponse(2L, "Orders", "ANALYTICS", String.valueOf(orders), "CONVERSION"),

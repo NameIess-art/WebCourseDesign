@@ -16,18 +16,18 @@ import com.mall.entity.ProductSku;
 import com.mall.entity.ReconciliationRecord;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
-import com.mall.repository.AfterSaleRecordRepository;
-import com.mall.repository.CategoryRepository;
-import com.mall.repository.OrderAuditRecordRepository;
-import com.mall.repository.OrderModifyRecordRepository;
-import com.mall.repository.OrderRepository;
-import com.mall.repository.PaymentRecordRepository;
-import com.mall.repository.ProductDetailBlockRepository;
-import com.mall.repository.ProductRepository;
-import com.mall.repository.ProductSkuRepository;
-import com.mall.repository.ReconciliationRecordRepository;
-import com.mall.repository.UserRepository;
-import com.mall.repository.MerchantRepository;
+import com.mall.mapper.AfterSaleRecordMapper;
+import com.mall.mapper.CategoryMapper;
+import com.mall.mapper.OrderAuditRecordMapper;
+import com.mall.mapper.OrderModifyRecordMapper;
+import com.mall.mapper.OrderMapper;
+import com.mall.mapper.PaymentRecordMapper;
+import com.mall.mapper.ProductDetailBlockMapper;
+import com.mall.mapper.ProductMapper;
+import com.mall.mapper.ProductSkuMapper;
+import com.mall.mapper.ReconciliationRecordMapper;
+import com.mall.mapper.UserMapper;
+import com.mall.mapper.MerchantMapper;
 import com.mall.vo.AfterSaleResponse;
 import com.mall.vo.DashboardResponse;
 import com.mall.vo.OrderResponse;
@@ -54,38 +54,50 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminService {
 
-    private final UserRepository userRepository;
-    private final ProductRepository productRepository;
-    private final CategoryRepository categoryRepository;
-    private final OrderRepository orderRepository;
-    private final ProductSkuRepository productSkuRepository;
-    private final ProductDetailBlockRepository productDetailBlockRepository;
-    private final OrderAuditRecordRepository orderAuditRecordRepository;
-    private final OrderModifyRecordRepository orderModifyRecordRepository;
-    private final ReconciliationRecordRepository reconciliationRecordRepository;
-    private final PaymentRecordRepository paymentRecordRepository;
-    private final AfterSaleRecordRepository afterSaleRecordRepository;
-    private final MerchantRepository merchantRepository;
+    private final UserMapper userMapper;
+    private final ProductMapper productMapper;
+    private final CategoryMapper categoryMapper;
+    private final OrderMapper orderMapper;
+    private final ProductSkuMapper productSkuMapper;
+    private final ProductDetailBlockMapper productDetailBlockMapper;
+    private final OrderAuditRecordMapper orderAuditRecordMapper;
+    private final OrderModifyRecordMapper orderModifyRecordMapper;
+    private final ReconciliationRecordMapper reconciliationRecordMapper;
+    private final PaymentRecordMapper paymentRecordMapper;
+    private final AfterSaleRecordMapper afterSaleRecordMapper;
+    private final MerchantMapper merchantMapper;
 
     private Long requireMerchantId() {
         Long merchantId = com.mall.context.MerchantContextHolder.getMerchantId();
         if (merchantId == null) {
-            throw new BusinessException("Please select a merchant first");
+            return merchantMapper.findAll().stream()
+                    .findFirst()
+                    .map(com.mall.entity.Merchant::getId)
+                    .orElseThrow(() -> new BusinessException("Please select a merchant first"));
         }
         return merchantId;
     }
 
     @Transactional(readOnly = true)
     public DashboardResponse dashboard() {
-        Long merchantId = requireMerchantId();
+        Long merchantId = com.mall.context.MerchantContextHolder.getMerchantId();
         List<OrderStatus> revenueStatuses = List.of(OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.COMPLETED);
-        BigDecimal totalRevenue = orderRepository.sumTotalAmountByMerchantIdAndStatusIn(merchantId, revenueStatuses);
+        if (merchantId == null) {
+            return new DashboardResponse(
+                    userMapper.count(),
+                    productMapper.count(),
+                    orderMapper.count(),
+                    orderMapper.countByStatus(OrderStatus.PENDING_PAYMENT),
+                    orderMapper.sumTotalAmountByStatusIn(revenueStatuses)
+            );
+        }
+        BigDecimal totalRevenue = orderMapper.sumTotalAmountByMerchantIdAndStatusIn(merchantId, revenueStatuses);
 
         return new DashboardResponse(
-                userRepository.countByMerchantId(merchantId),
-                productRepository.countByMerchantId(merchantId),
-                orderRepository.countByMerchantId(merchantId),
-                orderRepository.countByMerchantIdAndStatus(merchantId, OrderStatus.PENDING_PAYMENT),
+                userMapper.countByMerchantId(merchantId),
+                productMapper.countByMerchantId(merchantId),
+                orderMapper.countByMerchantId(merchantId),
+                orderMapper.countByMerchantIdAndStatus(merchantId, OrderStatus.PENDING_PAYMENT),
                 totalRevenue
         );
     }
@@ -100,15 +112,15 @@ public class AdminService {
         Long merchantId = requireMerchantId();
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
-        var productPage = productRepository.findByMerchantIdOrderByIdDesc(merchantId, PageRequest.of(safePage, safeSize));
+        var productPage = productMapper.findByMerchantIdOrderByIdDesc(merchantId, PageRequest.of(safePage, safeSize));
         List<Long> productIds = productPage.getContent().stream().map(Product::getId).toList();
         Map<Long, List<ProductSku>> skuMap = productIds.isEmpty()
                 ? Map.of()
-                : productSkuRepository.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
+                : productSkuMapper.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
                 .collect(Collectors.groupingBy(sku -> sku.getProduct().getId()));
         Map<Long, List<ProductDetailBlock>> detailMap = productIds.isEmpty()
                 ? Map.of()
-                : productDetailBlockRepository.findByProductIdInOrderByProductIdAscSortOrderAscIdAsc(productIds).stream()
+                : productDetailBlockMapper.findByProductIdInOrderByProductIdAscSortOrderAscIdAsc(productIds).stream()
                 .collect(Collectors.groupingBy(block -> block.getProduct().getId()));
         return PageResponse.of(productPage.map(product -> toProductResponse(
                 product,
@@ -120,50 +132,45 @@ public class AdminService {
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
         Long merchantId = requireMerchantId();
-        // 商品只接收分类编号，保存前先确认分类真实存在。
-        Category category = categoryRepository.findById(request.categoryId())
+        Category category = categoryMapper.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException("Category not found"));
         Product product = new Product();
-        // 商品归属当前商家上下文，避免前端伪造商家编号。
-        product.setMerchant(merchantRepository.findById(merchantId).orElseThrow());
+        product.setMerchant(merchantMapper.findById(merchantId).orElseThrow());
         updateFields(product, request, category);
-        Product saved = productRepository.save(product);
-        // 主表有编号后，再保存依赖商品编号的规格和详情段落。
+        Product saved = productMapper.save(product);
         syncProductChildren(saved, request);
         return toProductResponse(saved);
     }
 
     @Transactional
     public ProductResponse updateProduct(Long id, ProductRequest request) {
-        Product product = productRepository.findById(id)
+        Product product = productMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Product not found"));
-        // 更新时同样重新加载分类，防止提交不存在的分类编号。
-        Category category = categoryRepository.findById(request.categoryId())
+        Category category = categoryMapper.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException("Category not found"));
         updateFields(product, request, category);
-        Product saved = productRepository.save(product);
-        // 子表采用“先删后建”的同步方式，保证数据库内容与本次表单完全一致。
+        Product saved = productMapper.save(product);
         syncProductChildren(saved, request);
         return toProductResponse(saved);
     }
 
     @Transactional
     public void deleteProduct(Long id) {
-        Product product = productRepository.findById(id)
+        Product product = productMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Product not found"));
         product.setActive(false);
-        productRepository.save(product);
+        productMapper.save(product);
     }
 
     @Transactional
     public OrderResponse shipOrder(Long orderId) {
-        OrderEntity order = orderRepository.findById(orderId)
+        OrderEntity order = orderMapper.findById(orderId)
                 .orElseThrow(() -> new BusinessException("Order not found"));
         if (order.getStatus() != OrderStatus.PAID) {
             throw new BusinessException("Only paid orders can be shipped");
         }
         order.setStatus(OrderStatus.SHIPPED);
-        return toOrderResponse(orderRepository.save(order));
+        return toOrderResponse(orderMapper.save(order));
     }
 
     @Transactional(readOnly = true)
@@ -178,11 +185,11 @@ public class AdminService {
         int safeSize = Math.min(100, Math.max(1, size));
         PageRequest pageRequest = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         if (status == null || status.isBlank()) {
-            return PageResponse.of(orderRepository.findByMerchantIdOrderByCreatedAtDesc(merchantId, pageRequest).map(this::toOrderResponse));
+            return PageResponse.of(orderMapper.findByMerchantIdOrderByCreatedAtDesc(merchantId, pageRequest).map(this::toOrderResponse));
         }
         try {
             OrderStatus orderStatus = OrderStatus.valueOf(status.trim().toUpperCase());
-            return PageResponse.of(orderRepository.findByMerchantIdAndStatusOrderByCreatedAtDesc(merchantId, orderStatus, pageRequest)
+            return PageResponse.of(orderMapper.findByMerchantIdAndStatusOrderByCreatedAtDesc(merchantId, orderStatus, pageRequest)
                     .map(this::toOrderResponse));
         } catch (IllegalArgumentException ex) {
             throw new BusinessException("Invalid order status");
@@ -191,22 +198,22 @@ public class AdminService {
 
     @Transactional
     public OrderResponse auditOrder(Long orderId, OrderAuditRequest request) {
-        OrderEntity order = orderRepository.findById(orderId)
+        OrderEntity order = orderMapper.findById(orderId)
                 .orElseThrow(() -> new BusinessException("Order not found"));
         OrderAuditRecord record = new OrderAuditRecord();
         record.setOrder(order);
         record.setApproved(request.approved());
         record.setRemark(request.remark());
         record.setCreatedAt(LocalDateTime.now());
-        orderAuditRecordRepository.save(record);
+        orderAuditRecordMapper.save(record);
         order.setAuditStatus(Boolean.TRUE.equals(request.approved()) ? "APPROVED" : "REJECTED");
         order.setMerchantRemark(request.remark());
-        return toOrderResponse(orderRepository.save(order));
+        return toOrderResponse(orderMapper.save(order));
     }
 
     @Transactional
     public OrderResponse modifyOrder(Long orderId, OrderModifyRequest request) {
-        OrderEntity order = orderRepository.findById(orderId)
+        OrderEntity order = orderMapper.findById(orderId)
                 .orElseThrow(() -> new BusinessException("Order not found"));
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT && order.getStatus() != OrderStatus.PAID) {
             throw new BusinessException("Only unpaid or paid orders can be modified");
@@ -219,13 +226,13 @@ public class AdminService {
         record.setAfterAddress(request.shippingAddress());
         record.setRemark(request.remark());
         record.setCreatedAt(LocalDateTime.now());
-        orderModifyRecordRepository.save(record);
+        orderModifyRecordMapper.save(record);
         order.setShippingAddress(request.shippingAddress());
         if (request.totalAmount() != null) {
             order.setTotalAmount(request.totalAmount());
         }
         order.setMerchantRemark(request.remark());
-        return toOrderResponse(orderRepository.save(order));
+        return toOrderResponse(orderMapper.save(order));
     }
 
     @Transactional
@@ -233,38 +240,38 @@ public class AdminService {
         LocalDate date = bizDate == null ? LocalDate.now() : bizDate;
         LocalDateTime startAt = date.atStartOfDay();
         LocalDateTime endAt = date.plusDays(1).atStartOfDay();
-        long paidOrderCount = orderRepository.countPaidOrdersBetween(startAt, endAt);
-        BigDecimal orderAmount = orderRepository.sumPaidOrderAmountBetween(startAt, endAt);
-        BigDecimal paymentAmount = paymentRecordRepository.sumPaidAmountBetween(startAt, endAt);
-        ReconciliationRecord record = reconciliationRecordRepository.findByBizDate(date)
+        long paidOrderCount = orderMapper.countPaidOrdersBetween(startAt, endAt);
+        BigDecimal orderAmount = orderMapper.sumPaidOrderAmountBetween(startAt, endAt);
+        BigDecimal paymentAmount = paymentRecordMapper.sumPaidAmountBetween(startAt, endAt);
+        ReconciliationRecord record = reconciliationRecordMapper.findByBizDate(date)
                 .orElseGet(ReconciliationRecord::new);
         record.setBizDate(date);
         record.setOrderCount(paidOrderCount);
         record.setOrderAmount(orderAmount);
         record.setPaymentAmount(paymentAmount);
         record.setStatus(orderAmount.compareTo(paymentAmount) == 0 ? "MATCHED" : "DIFF");
-        return reconciliationRecordRepository.save(record);
+        return reconciliationRecordMapper.save(record);
     }
 
     @Transactional
     public AfterSaleResponse processAfterSale(Long id, AfterSaleProcessRequest request) {
-        AfterSaleRecord record = afterSaleRecordRepository.findById(id)
+        AfterSaleRecord record = afterSaleRecordMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("After-sale record not found"));
         record.setStatus(request.status());
-        AfterSaleRecord saved = afterSaleRecordRepository.save(record);
+        AfterSaleRecord saved = afterSaleRecordMapper.save(record);
         return new AfterSaleResponse(saved.getId(), saved.getOrder().getOrderNo(), saved.getType(),
                 saved.getReason() + "; process remark: " + request.remark(), saved.getStatus(), saved.getCreatedAt());
     }
 
     @Transactional(readOnly = true)
     public PageResponse<AfterSaleResponse> afterSales(int page, int size) {
-        Page<AfterSaleResponse> result = afterSaleRecordRepository.findAll(PageRequest.of(page, size)).map(this::toAfterSaleResponse);
+        Page<AfterSaleResponse> result = afterSaleRecordMapper.findAll(PageRequest.of(page, size)).map(this::toAfterSaleResponse);
         return PageResponse.of(result);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<SimpleItemResponse> reconciliations(int page, int size) {
-        Page<SimpleItemResponse> result = reconciliationRecordRepository.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getBizDate().toString(), "RECONCILIATION",
+        Page<SimpleItemResponse> result = reconciliationRecordMapper.findAll(PageRequest.of(page, size)).map(item -> new SimpleItemResponse(item.getId(), item.getBizDate().toString(), "RECONCILIATION",
                         "Total: " + item.getOrderAmount() + " / Payments: " + item.getPaymentAmount(),
                         item.getStatus()));
         return PageResponse.of(result);
@@ -276,7 +283,6 @@ public class AdminService {
     }
 
     private void updateFields(Product product, ProductRequest request, Category category) {
-        // 将请求体中的商品主字段集中写入实体，创建和编辑共用同一套赋值逻辑。
         product.setName(request.name());
         product.setSubtitle(request.subtitle());
         product.setDescription(request.description());
@@ -288,7 +294,6 @@ public class AdminService {
         if (product.getSales() == null) {
             product.setSales(0);
         }
-        // 可选展示字段为空时补默认值，避免前端商品卡片出现空白。
         product.setSkuCode(request.skuCode() == null || request.skuCode().isBlank()
                 ? "SKU-" + System.currentTimeMillis() : request.skuCode());
         product.setSpec(request.spec() == null || request.spec().isBlank() ? "Standard" : request.spec());
@@ -306,8 +311,7 @@ public class AdminService {
     }
 
     private void syncProductChildren(Product product, ProductRequest request) {
-        // 规格子表不做局部增删改，直接按本次提交结果重建，逻辑更简单清晰。
-        productSkuRepository.deleteAll(productSkuRepository.findByProductIdOrderByIdAsc(product.getId()));
+        productSkuMapper.deleteAll(productSkuMapper.findByProductIdOrderByIdAsc(product.getId()));
         List<ProductSku> skus = request.skus() == null || request.skus().isEmpty()
                 ? List.of(defaultSku(product))
                 : request.skus().stream().map(item -> {
@@ -320,11 +324,10 @@ public class AdminService {
                     sku.setActive(item.active() == null || item.active());
                     return sku;
                 }).toList();
-        productSkuRepository.saveAll(skus);
+        productSkuMapper.saveAll(skus);
 
-        // 图文详情段落同样与表单保持一致，排序值用于前端按顺序展示。
-        productDetailBlockRepository.deleteAll(
-                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId()));
+        productDetailBlockMapper.deleteAll(
+                productDetailBlockMapper.findByProductIdOrderBySortOrderAscIdAsc(product.getId()));
         List<ProductDetailBlock> blocks = request.detailBlocks() == null || request.detailBlocks().isEmpty()
                 ? List.of(defaultDetailBlock(product))
                 : request.detailBlocks().stream().map(item -> {
@@ -335,7 +338,7 @@ public class AdminService {
                     block.setSortOrder(item.sortOrder() == null ? 0 : item.sortOrder());
                     return block;
                 }).toList();
-        productDetailBlockRepository.saveAll(blocks);
+        productDetailBlockMapper.saveAll(blocks);
     }
 
     private ProductSku defaultSku(Product product) {
@@ -362,8 +365,8 @@ public class AdminService {
     private ProductResponse toProductResponse(Product product) {
         return toProductResponse(
                 product,
-                productSkuRepository.findByProductIdOrderByIdAsc(product.getId()),
-                productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId())
+                productSkuMapper.findByProductIdOrderByIdAsc(product.getId()),
+                productDetailBlockMapper.findByProductIdOrderBySortOrderAscIdAsc(product.getId())
         );
     }
 

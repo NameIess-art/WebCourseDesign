@@ -9,10 +9,10 @@ import com.mall.entity.SeckillEvent;
 import com.mall.entity.UserAccount;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
-import com.mall.repository.OrderRepository;
-import com.mall.repository.ProductRepository;
-import com.mall.repository.ProductSkuRepository;
-import com.mall.repository.SeckillEventRepository;
+import com.mall.mapper.OrderMapper;
+import com.mall.mapper.ProductMapper;
+import com.mall.mapper.ProductSkuMapper;
+import com.mall.mapper.SeckillEventMapper;
 import com.mall.vo.OrderItemResponse;
 import com.mall.vo.PageResponse;
 import com.mall.vo.OrderResponse;
@@ -37,22 +37,22 @@ public class SeckillService {
     private static final long WINDOW_MILLIS = 10_000L;
     private static final int MAX_REQUESTS = 3;
 
-    private final SeckillEventRepository seckillEventRepository;
-    private final ProductRepository productRepository;
-    private final ProductSkuRepository productSkuRepository;
-    private final OrderRepository orderRepository;
+    private final SeckillEventMapper seckillEventMapper;
+    private final ProductMapper productMapper;
+    private final ProductSkuMapper productSkuMapper;
+    private final OrderMapper orderMapper;
     private final Map<String, Deque<Long>> requestWindows = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
     public PageResponse<SeckillEventResponse> events(int page, int size) {
-        org.springframework.data.domain.Page<SeckillEventResponse> result = seckillEventRepository.findByActiveTrueOrderByStartAtDesc(org.springframework.data.domain.PageRequest.of(page, size))
+        org.springframework.data.domain.Page<SeckillEventResponse> result = seckillEventMapper.findByActiveTrueOrderByStartAtDesc(org.springframework.data.domain.PageRequest.of(page, size))
                 .map(this::toResponse);
         return PageResponse.of(result);
     }
 
     @Transactional
     public SeckillEventResponse createEvent(SeckillEventRequest request) {
-        Product product = productRepository.findById(request.productId())
+        Product product = productMapper.findById(request.productId())
                 .orElseThrow(() -> new BusinessException("Product not found"));
         SeckillEvent event = new SeckillEvent();
         event.setProduct(product);
@@ -62,30 +62,30 @@ public class SeckillService {
         event.setActive(true);
         event.setStartAt(LocalDateTime.now().minusMinutes(5));
         event.setEndAt(LocalDateTime.now().plusDays(1));
-        return toResponse(seckillEventRepository.save(event));
+        return toResponse(seckillEventMapper.save(event));
     }
 
     @Transactional
     public OrderResponse purchase(UserAccount user, Long eventId) {
         rateLimit(user.getId(), eventId);
-        SeckillEvent event = seckillEventRepository.findById(eventId)
+        SeckillEvent event = seckillEventMapper.findById(eventId)
                 .orElseThrow(() -> new BusinessException("Seckill event not found"));
         LocalDateTime now = LocalDateTime.now();
         if (!Boolean.TRUE.equals(event.getActive()) || now.isBefore(event.getStartAt()) || now.isAfter(event.getEndAt())) {
             throw new BusinessException("Seckill event is not active");
         }
-        if (seckillEventRepository.decreaseStock(eventId) == 0) {
+        if (seckillEventMapper.decreaseStock(eventId) == 0) {
             throw new BusinessException("Seckill stock sold out");
         }
-        if (productRepository.decreaseStock(event.getProduct().getId(), 1) == 0) {
+        if (productMapper.decreaseStock(event.getProduct().getId(), 1) == 0) {
             throw new BusinessException("Product stock sold out");
         }
 
         Product product = event.getProduct();
-        ProductSku sku = productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream()
+        ProductSku sku = productSkuMapper.findByProductIdOrderByIdAsc(product.getId()).stream()
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("SKU not found"));
-        if (productSkuRepository.decreaseStock(sku.getId(), 1) == 0) {
+        if (productSkuMapper.decreaseStock(sku.getId(), 1) == 0) {
             throw new BusinessException("SKU stock sold out");
         }
         OrderEntity order = new OrderEntity();
@@ -108,7 +108,7 @@ public class SeckillService {
         item.setPrice(event.getSeckillPrice());
         order.getItems().add(item);
 
-        return toOrderResponse(orderRepository.save(order));
+        return toOrderResponse(orderMapper.save(order));
     }
 
     private void rateLimit(Long userId, Long eventId) {

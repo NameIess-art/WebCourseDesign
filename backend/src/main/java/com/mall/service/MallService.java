@@ -14,16 +14,16 @@ import com.mall.entity.UserAccount;
 import com.mall.entity.UserCoupon;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
-import com.mall.repository.CartItemRepository;
-import com.mall.repository.CategoryRepository;
-import com.mall.repository.IdempotentRecordRepository;
-import com.mall.repository.OrderRepository;
-import com.mall.repository.PointRecordRepository;
-import com.mall.repository.ProductDetailBlockRepository;
-import com.mall.repository.ProductRepository;
-import com.mall.repository.ProductSkuRepository;
-import com.mall.repository.UserCouponRepository;
-import com.mall.repository.UserRepository;
+import com.mall.mapper.CartItemMapper;
+import com.mall.mapper.CategoryMapper;
+import com.mall.mapper.IdempotentRecordMapper;
+import com.mall.mapper.OrderMapper;
+import com.mall.mapper.PointRecordMapper;
+import com.mall.mapper.ProductDetailBlockMapper;
+import com.mall.mapper.ProductMapper;
+import com.mall.mapper.ProductSkuMapper;
+import com.mall.mapper.UserCouponMapper;
+import com.mall.mapper.UserMapper;
 import com.mall.vo.CartItemResponse;
 import com.mall.vo.CartResponse;
 import com.mall.vo.CategoryResponse;
@@ -56,20 +56,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MallService {
 
-    private final CategoryRepository categoryRepository;
-    private final ProductRepository productRepository;
-    private final CartItemRepository cartItemRepository;
-    private final OrderRepository orderRepository;
-    private final UserCouponRepository userCouponRepository;
-    private final ProductSkuRepository productSkuRepository;
-    private final ProductDetailBlockRepository productDetailBlockRepository;
-    private final PointRecordRepository pointRecordRepository;
-    private final IdempotentRecordRepository idempotentRecordRepository;
-    private final UserRepository userRepository;
+    private final CategoryMapper categoryMapper;
+    private final ProductMapper productMapper;
+    private final CartItemMapper cartItemMapper;
+    private final OrderMapper orderMapper;
+    private final UserCouponMapper userCouponMapper;
+    private final ProductSkuMapper productSkuMapper;
+    private final ProductDetailBlockMapper productDetailBlockMapper;
+    private final PointRecordMapper pointRecordMapper;
+    private final IdempotentRecordMapper idempotentRecordMapper;
+    private final UserMapper userMapper;
 
     @Transactional(readOnly = true)
     public PageResponse<CategoryResponse> categories(int page, int size) {
-        Page<CategoryResponse> result = categoryRepository.findAllByOrderBySortOrderAscIdAsc(PageRequest.of(page, size))
+        Page<CategoryResponse> result = categoryMapper.findAllByOrderBySortOrderAscIdAsc(PageRequest.of(page, size))
                 .map(category -> new CategoryResponse(category.getId(), category.getName()));
         return PageResponse.of(result);
     }
@@ -81,25 +81,23 @@ public class MallService {
 
     @Transactional(readOnly = true)
     public PageResponse<ProductResponse> products(String keyword, Long categoryId, int page, int size) {
-        // 根据是否传入关键字和分类编号，选择不同的仓库查询方法。
         boolean hasKeyword = keyword != null && !keyword.isBlank();
         Pageable pageable = pageRequest(page, size);
         Page<Product> products;
         if (categoryId != null && hasKeyword) {
-            products = productRepository.findByActiveTrueAndCategoryIdAndNameContainingIgnoreCaseOrderByIdDesc(
+            products = productMapper.findByActiveTrueAndCategoryIdAndNameContainingIgnoreCaseOrderByIdDesc(
                     categoryId, keyword.trim(), pageable);
         } else if (categoryId != null) {
-            products = productRepository.findByActiveTrueAndCategoryIdOrderByIdDesc(categoryId, pageable);
+            products = productMapper.findByActiveTrueAndCategoryIdOrderByIdDesc(categoryId, pageable);
         } else if (hasKeyword) {
-            products = productRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(keyword.trim(), pageable);
+            products = productMapper.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(keyword.trim(), pageable);
         } else {
-            products = productRepository.findByActiveTrueOrderByIdDesc(pageable);
+            products = productMapper.findByActiveTrueOrderByIdDesc(pageable);
         }
-        // 批量查询规格并按商品编号分组，避免列表页逐个商品查询子表。
         List<Long> productIds = products.getContent().stream().map(Product::getId).toList();
         Map<Long, List<ProductSku>> skuMap = productIds.isEmpty()
                 ? Map.of()
-                : productSkuRepository.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
+                : productSkuMapper.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
                 .collect(Collectors.groupingBy(sku -> sku.getProduct().getId()));
         Page<ProductResponse> responsePage = products.map(product -> toProductResponse(
                 product,
@@ -113,13 +111,13 @@ public class MallService {
     public SearchSuggestResponse suggest(String keyword) {
         String value = keyword == null ? "" : keyword.trim();
         List<String> productNames = (value.isBlank()
-                ? productRepository.findByActiveTrueOrderByIdDesc(PageRequest.of(0, 8)).getContent()
-                : productRepository.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(
+                ? productMapper.findByActiveTrueOrderByIdDesc(PageRequest.of(0, 8)).getContent()
+                : productMapper.findByActiveTrueAndNameContainingIgnoreCaseOrderByIdDesc(
                 value, PageRequest.of(0, 8)).getContent())
                 .stream()
                 .map(Product::getName)
                 .toList();
-        List<String> categories = categoryRepository.findAllByOrderBySortOrderAscIdAsc().stream()
+        List<String> categories = categoryMapper.findAllByOrderBySortOrderAscIdAsc().stream()
                 .filter(category -> value.isBlank()
                         || category.getName().toLowerCase().contains(value.toLowerCase()))
                 .map(category -> category.getName())
@@ -129,11 +127,11 @@ public class MallService {
 
     @Transactional(readOnly = true)
     public RecommendationResponse recommendations() {
-        List<Product> products = productRepository.findByActiveTrueOrderByIdDesc(PageRequest.of(0, 50)).getContent();
+        List<Product> products = productMapper.findByActiveTrueOrderByIdDesc(PageRequest.of(0, 50)).getContent();
         List<Long> productIds = products.stream().map(Product::getId).toList();
         Map<Long, List<ProductSku>> skuMap = productIds.isEmpty()
                 ? Map.of()
-                : productSkuRepository.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
+                : productSkuMapper.findByProductIdInOrderByProductIdAscIdAsc(productIds).stream()
                 .collect(Collectors.groupingBy(sku -> sku.getProduct().getId()));
         List<ProductResponse> all = products.stream()
                 .map(product -> toProductResponse(product, skuMap.getOrDefault(product.getId(), List.of()), List.of()))
@@ -162,19 +160,16 @@ public class MallService {
 
     @Transactional
     public void addToCart(UserAccount user, CartItemRequest request) {
-        // 根据前端传来的商品编号加载商品，并确认商品仍处于上架状态。
         Product product = getProduct(request.productId());
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Product is unavailable");
         }
-        // 规格可选；未传时解析默认规格，再用规格库存做最终购买数量限制。
         ProductSku sku = resolveSku(product, request.skuId());
         if (sku.getStock() < request.quantity()) {
             throw new BusinessException("Insufficient SKU stock");
         }
 
-        // 同一用户、同一商品、同一规格只保留一条购物车记录，重复加购则累加数量。
-        CartItem cartItem = cartItemRepository.findByUserIdAndProductIdAndSkuId(
+        CartItem cartItem = cartItemMapper.findByUserIdAndProductIdAndSkuId(
                 user.getId(), product.getId(), sku.getId()).orElseGet(() -> {
             CartItem item = new CartItem();
             item.setUser(user);
@@ -184,18 +179,17 @@ public class MallService {
             return item;
         });
 
-        // 累加后的目标数量也要再次比较库存，防止多次加购突破库存上限。
         int targetQuantity = cartItem.getQuantity() + request.quantity();
         if (targetQuantity > sku.getStock()) {
             throw new BusinessException("Cart quantity exceeds SKU stock");
         }
         cartItem.setQuantity(targetQuantity);
-        cartItemRepository.save(cartItem);
+        cartItemMapper.save(cartItem);
     }
 
     @Transactional(readOnly = true)
     public CartResponse cart(UserAccount user) {
-        List<CartItemResponse> items = cartItemRepository.findByUserId(user.getId()).stream()
+        List<CartItemResponse> items = cartItemMapper.findByUserId(user.getId()).stream()
                 .sorted(Comparator.comparing(CartItem::getId).reversed())
                 .map(item -> {
                     ProductSku sku = item.getSku();
@@ -225,7 +219,7 @@ public class MallService {
 
     @Transactional
     public void updateCartItem(UserAccount user, Long cartItemId, Integer quantity) {
-        CartItem cartItem = cartItemRepository.findById(cartItemId)
+        CartItem cartItem = cartItemMapper.findById(cartItemId)
                 .filter(item -> item.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new BusinessException("Cart item not found"));
         if (quantity < 1) {
@@ -236,35 +230,33 @@ public class MallService {
             throw new BusinessException("Insufficient stock");
         }
         cartItem.setQuantity(quantity);
-        cartItemRepository.save(cartItem);
+        cartItemMapper.save(cartItem);
     }
 
     @Transactional
     public void removeCartItem(UserAccount user, Long cartItemId) {
-        CartItem cartItem = cartItemRepository.findById(cartItemId)
+        CartItem cartItem = cartItemMapper.findById(cartItemId)
                 .filter(item -> item.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new BusinessException("Cart item not found"));
-        cartItemRepository.delete(cartItem);
+        cartItemMapper.delete(cartItem);
     }
 
     @Transactional
     public OrderResponse checkout(UserAccount user, CheckoutRequest request) {
-        // 如果前端携带相同幂等键重复请求，优先返回已生成的订单，避免重复下单。
         if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()
-                && idempotentRecordRepository.existsByIdemKey(request.idempotencyKey())) {
-            return orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+                && idempotentRecordMapper.existsByIdemKey(request.idempotencyKey())) {
+            return orderMapper.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                     .filter(order -> request.idempotencyKey().equals(order.getIdempotencyKey()))
                     .findFirst()
                     .map(this::toOrderResponse)
                     .orElseThrow(() -> new BusinessException("Duplicate checkout request"));
         }
 
-        List<CartItem> cartItems = cartItemRepository.findByUserId(user.getId());
+        List<CartItem> cartItems = cartItemMapper.findByUserId(user.getId());
         if (cartItems.isEmpty()) {
             throw new BusinessException("Cart is empty");
         }
 
-        // 先创建订单主表对象，后续循环购物车条目时逐步填充订单明细和金额。
         OrderEntity order = new OrderEntity();
         order.setOrderNo("MALL" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
         order.setUser(user);
@@ -278,13 +270,11 @@ public class MallService {
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
             ProductSku sku = cartItem.getSku() == null ? resolveSku(product, null) : cartItem.getSku();
-            // 条件扣减库存由数据库执行，库存不足时返回 0，可防止并发结算造成超卖。
-            if (productSkuRepository.decreaseStock(sku.getId(), cartItem.getQuantity()) == 0
-                    || productRepository.decreaseStock(product.getId(), cartItem.getQuantity()) == 0) {
+            if (productSkuMapper.decreaseStock(sku.getId(), cartItem.getQuantity()) == 0
+                    || productMapper.decreaseStock(product.getId(), cartItem.getQuantity()) == 0) {
                 throw new BusinessException(product.getName() + " is out of stock");
             }
 
-            // 订单明细保存下单当刻的商品、规格、数量和价格，后续商品改价不影响历史订单。
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setProduct(product);
@@ -296,7 +286,6 @@ public class MallService {
             total = total.add(sku.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
         }
 
-        // 先计算优惠券，再计算积分抵扣，最终金额不允许小于 0。
         BigDecimal discount = couponDiscount(user, request.couponId(), total);
         int pointsUsed = request.pointsUsed() == null ? 0 : Math.max(0, request.pointsUsed());
         int availablePoints = user.getPoints() == null ? 0 : user.getPoints();
@@ -311,7 +300,7 @@ public class MallService {
         }
         if (pointsUsed > 0) {
             user.setPoints(availablePoints - pointsUsed);
-            pointRecordRepository.save(pointRecord(user, -pointsUsed, "USE", "Order points deduction"));
+            pointRecordMapper.save(pointRecord(user, -pointsUsed, "USE", "Order points deduction"));
         }
 
         order.setOriginalAmount(total);
@@ -319,20 +308,18 @@ public class MallService {
         order.setPointsUsed(pointsUsed);
         order.setPointsDiscountAmount(pointsDiscount);
         order.setTotalAmount(total.subtract(discount).subtract(pointsDiscount).max(BigDecimal.ZERO));
-        OrderEntity saved = orderRepository.save(order);
+        OrderEntity saved = orderMapper.save(order);
 
-        // 订单保存成功后记录幂等键，下一次相同请求可以直接查回这笔订单。
         if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
             IdempotentRecord record = new IdempotentRecord();
             record.setIdemKey(request.idempotencyKey());
             record.setBizType("ORDER_CHECKOUT");
             record.setBizResult(saved.getOrderNo());
             record.setCreatedAt(LocalDateTime.now());
-            idempotentRecordRepository.save(record);
+            idempotentRecordMapper.save(record);
         }
 
-        // 结算成功后清空购物车，保证购物车状态与订单生成结果一致。
-        cartItemRepository.deleteByUserId(user.getId());
+        cartItemMapper.deleteByUserId(user.getId());
         return toOrderResponse(saved);
     }
 
@@ -343,7 +330,7 @@ public class MallService {
 
     @Transactional(readOnly = true)
     public PageResponse<OrderResponse> orders(UserAccount user, int page, int size) {
-        return PageResponse.of(orderRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageRequest(page, size))
+        return PageResponse.of(orderMapper.findByUserIdOrderByCreatedAtDesc(user.getId(), pageRequest(page, size))
                 .map(this::toOrderResponse));
     }
 
@@ -358,9 +345,9 @@ public class MallService {
         order.setPaymentChannel("BALANCE");
         int earned = order.getTotalAmount().intValue();
         user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + earned);
-        userRepository.save(user);
-        pointRecordRepository.save(pointRecord(user, earned, "EARN", "Order payment reward"));
-        return toOrderResponse(orderRepository.save(order));
+        userMapper.save(user);
+        pointRecordMapper.save(pointRecord(user, earned, "EARN", "Order payment reward"));
+        return toOrderResponse(orderMapper.save(order));
     }
 
     @Transactional
@@ -372,11 +359,11 @@ public class MallService {
         order.setStatus(OrderStatus.CANCELLED);
         for (OrderItem item : order.getItems()) {
             if (item.getSku() != null) {
-                productSkuRepository.restoreStock(item.getSku().getId(), item.getQuantity());
+                productSkuMapper.restoreStock(item.getSku().getId(), item.getQuantity());
             }
-            productRepository.restoreStock(item.getProduct().getId(), item.getQuantity());
+            productMapper.restoreStock(item.getProduct().getId(), item.getQuantity());
         }
-        return toOrderResponse(orderRepository.save(order));
+        return toOrderResponse(orderMapper.save(order));
     }
 
     @Transactional
@@ -386,14 +373,14 @@ public class MallService {
             throw new BusinessException("Only shipped orders can be completed");
         }
         order.setStatus(OrderStatus.COMPLETED);
-        return toOrderResponse(orderRepository.save(order));
+        return toOrderResponse(orderMapper.save(order));
     }
 
     private BigDecimal couponDiscount(UserAccount user, Long couponId, BigDecimal total) {
         if (couponId == null) {
             return BigDecimal.ZERO;
         }
-        UserCoupon userCoupon = userCouponRepository.findByUserIdOrderByClaimedAtDesc(user.getId()).stream()
+        UserCoupon userCoupon = userCouponMapper.findByUserIdOrderByClaimedAtDesc(user.getId()).stream()
                 .filter(item -> item.getCoupon().getId().equals(couponId))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("Coupon not claimed"));
@@ -408,15 +395,15 @@ public class MallService {
     }
 
     private Product getProduct(Long id) {
-        return productRepository.findById(id)
+        return productMapper.findById(id)
                 .orElseThrow(() -> new BusinessException("Product not found"));
     }
 
     private ProductSku resolveSku(Product product, Long skuId) {
         ProductSku sku = skuId == null
-                ? productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).stream().findFirst()
+                ? productSkuMapper.findByProductIdOrderByIdAsc(product.getId()).stream().findFirst()
                 .orElseThrow(() -> new BusinessException("SKU not found"))
-                : productSkuRepository.findById(skuId)
+                : productSkuMapper.findById(skuId)
                 .filter(item -> item.getProduct().getId().equals(product.getId()))
                 .orElseThrow(() -> new BusinessException("SKU not found"));
         if (!Boolean.TRUE.equals(sku.getActive())) {
@@ -426,15 +413,15 @@ public class MallService {
     }
 
     private OrderEntity getUserOrder(UserAccount user, Long orderId) {
-        return orderRepository.findById(orderId)
+        return orderMapper.findById(orderId)
                 .filter(order -> order.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new BusinessException("Order not found"));
     }
 
     private ProductResponse toProductResponse(Product product, boolean includeDetailBlocks) {
-        List<ProductSku> skus = productSkuRepository.findByProductIdOrderByIdAsc(product.getId());
+        List<ProductSku> skus = productSkuMapper.findByProductIdOrderByIdAsc(product.getId());
         List<ProductDetailBlock> blocks = includeDetailBlocks
-                ? productDetailBlockRepository.findByProductIdOrderBySortOrderAscIdAsc(product.getId())
+                ? productDetailBlockMapper.findByProductIdOrderBySortOrderAscIdAsc(product.getId())
                 : List.of();
         return toProductResponse(product, skus, blocks);
     }

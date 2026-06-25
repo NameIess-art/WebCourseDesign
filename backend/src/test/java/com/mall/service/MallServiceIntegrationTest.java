@@ -11,9 +11,9 @@ import com.mall.entity.ProductSku;
 import com.mall.entity.UserAccount;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
-import com.mall.repository.ProductRepository;
-import com.mall.repository.ProductSkuRepository;
-import com.mall.repository.UserRepository;
+import com.mall.mapper.ProductMapper;
+import com.mall.mapper.ProductSkuMapper;
+import com.mall.mapper.UserMapper;
 import com.mall.vo.OrderResponse;
 import com.mall.vo.PaymentResponse;
 import jakarta.persistence.EntityManager;
@@ -50,20 +50,20 @@ class MallServiceIntegrationTest {
     private OperationService operationService;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserMapper userMapper;
 
     @Autowired
-    private ProductRepository productRepository;
+    private ProductMapper productMapper;
 
     @Autowired
-    private ProductSkuRepository productSkuRepository;
+    private ProductSkuMapper productSkuMapper;
 
     @Autowired
     private EntityManager entityManager;
 
     @Test
     void merchantDemoAccountCanLogin() {
-        assertThat(userRepository.findByUsername("merchant")).isPresent();
+        assertThat(userMapper.findByUsername("merchant")).isPresent();
 
         var response = authService.login(new LoginRequest("merchant", "merchant123"));
 
@@ -73,8 +73,8 @@ class MallServiceIntegrationTest {
 
     @Test
     void completesTheCustomerOrderLifecycle() {
-        UserAccount user = userRepository.findByUsername("demo").orElseThrow();
-        Product product = productRepository.findByActiveTrueOrderByIdDesc().getFirst();
+        UserAccount user = userMapper.findByUsername("demo").orElseThrow();
+        Product product = productMapper.findByActiveTrueOrderByIdDesc().getFirst();
         int originalStock = product.getStock();
 
         mallService.addToCart(user, new CartItemRequest(product.getId(), null, 2));
@@ -83,7 +83,7 @@ class MallServiceIntegrationTest {
         OrderResponse order = mallService.checkout(user, new CheckoutRequest("Shanghai Demo Road 1001",
                 null, 0, null, "test-order-lifecycle"));
         assertThat(order.status()).isEqualTo(OrderStatus.PENDING_PAYMENT.name());
-        assertThat(productRepository.findById(product.getId()).orElseThrow().getStock()).isEqualTo(originalStock - 2);
+        assertThat(productMapper.findById(product.getId()).orElseThrow().getStock()).isEqualTo(originalStock - 2);
         assertThatThrownBy(() -> mallService.confirmReceived(user, order.id()))
                 .isInstanceOf(BusinessException.class);
 
@@ -95,8 +95,8 @@ class MallServiceIntegrationTest {
 
     @Test
     void cancellingRestoresStockAndProductDeletionIsSoft() {
-        UserAccount user = userRepository.findByUsername("demo").orElseThrow();
-        Product product = productRepository.findByActiveTrueOrderByIdDesc().getFirst();
+        UserAccount user = userMapper.findByUsername("demo").orElseThrow();
+        Product product = productMapper.findByActiveTrueOrderByIdDesc().getFirst();
         int originalStock = product.getStock();
 
         mallService.addToCart(user, new CartItemRequest(product.getId(), null, 1));
@@ -104,17 +104,17 @@ class MallServiceIntegrationTest {
                 null, 0, null, "test-cancel-restore"));
         mallService.cancel(user, order.id());
 
-        assertThat(productRepository.findById(product.getId()).orElseThrow().getStock()).isEqualTo(originalStock);
+        assertThat(productMapper.findById(product.getId()).orElseThrow().getStock()).isEqualTo(originalStock);
         adminService.deleteProduct(product.getId());
-        assertThat(productRepository.findById(product.getId()).orElseThrow().getActive()).isFalse();
+        assertThat(productMapper.findById(product.getId()).orElseThrow().getActive()).isFalse();
         assertThat(mallService.products(null, null)).noneMatch(item -> item.id().equals(product.getId()));
     }
 
     @Test
     void productSearchIsPagedAndSkuStockIsUsedDuringCheckout() {
-        UserAccount user = userRepository.findByUsername("demo").orElseThrow();
-        Product product = productRepository.findByActiveTrueOrderByIdDesc().getFirst();
-        ProductSku sku = productSkuRepository.findByProductIdOrderByIdAsc(product.getId()).getFirst();
+        UserAccount user = userMapper.findByUsername("demo").orElseThrow();
+        Product product = productMapper.findByActiveTrueOrderByIdDesc().getFirst();
+        ProductSku sku = productSkuMapper.findByProductIdOrderByIdAsc(product.getId()).getFirst();
         int originalSkuStock = sku.getStock();
 
         var page = mallService.products(null, null, 0, 2);
@@ -127,16 +127,16 @@ class MallServiceIntegrationTest {
         OrderResponse order = mallService.checkout(user, new CheckoutRequest("Shanghai Demo Road 1001",
                 null, 0, sku.getId(), "test-sku-checkout"));
         assertThat(order.items().getFirst().skuId()).isEqualTo(sku.getId());
-        assertThat(productSkuRepository.findById(sku.getId()).orElseThrow().getStock()).isEqualTo(originalSkuStock - 1);
+        assertThat(productSkuMapper.findById(sku.getId()).orElseThrow().getStock()).isEqualTo(originalSkuStock - 1);
 
         mallService.cancel(user, order.id());
-        assertThat(productSkuRepository.findById(sku.getId()).orElseThrow().getStock()).isEqualTo(originalSkuStock);
+        assertThat(productSkuMapper.findById(sku.getId()).orElseThrow().getStock()).isEqualTo(originalSkuStock);
     }
 
     @Test
     void paymentCallbackIsIdempotentAndRewardsPointsOnce() {
-        UserAccount user = userRepository.findByUsername("demo").orElseThrow();
-        Product product = productRepository.findByActiveTrueOrderByIdDesc().getFirst();
+        UserAccount user = userMapper.findByUsername("demo").orElseThrow();
+        Product product = productMapper.findByActiveTrueOrderByIdDesc().getFirst();
         int originalPoints = user.getPoints() == null ? 0 : user.getPoints();
 
         mallService.addToCart(user, new CartItemRequest(product.getId(), null, 1));
@@ -154,7 +154,7 @@ class MallServiceIntegrationTest {
         assertThat(replay.status()).isEqualTo("PAID");
         entityManager.flush();
         entityManager.clear();
-        assertThat(userRepository.findById(user.getId()).orElseThrow().getPoints())
+        assertThat(userMapper.findById(user.getId()).orElseThrow().getPoints())
                 .isEqualTo(originalPoints + order.totalAmount().intValue());
     }
 

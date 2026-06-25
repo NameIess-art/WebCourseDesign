@@ -49,7 +49,6 @@ public class MallController {
                                                                @RequestParam(required = false) Long categoryId,
                                                                @RequestParam(defaultValue = "0") int page,
                                                                @RequestParam(defaultValue = "20") int size) {
-        // 查询参数通过地址栏传输，服务层负责组合关键字、分类和分页条件。
         return ApiResponse.success(mallService.products(keyword, categoryId, page, size));
     }
 
@@ -81,7 +80,6 @@ public class MallController {
     @PostMapping("/cart")
     public ApiResponse<Void> addToCart(@AuthenticationPrincipal UserAccount user,
                                        @Valid @RequestBody CartItemRequest request) {
-        // 当前用户来自登录令牌，请求体来自商品详情页；服务层会再次校验库存。
         mallService.addToCart(user, request);
         return ApiResponse.success();
     }
@@ -104,7 +102,6 @@ public class MallController {
     @PostMapping("/orders/checkout")
     public ApiResponse<OrderResponse> checkout(@AuthenticationPrincipal UserAccount user,
                                                @Valid @RequestBody CheckoutRequest request) {
-        // 订单生成的接口边界：已认证用户加已校验请求体，进入事务化结算流程。
         return ApiResponse.success(mallService.checkout(user, request));
     }
 

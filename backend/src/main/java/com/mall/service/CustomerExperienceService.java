@@ -17,16 +17,16 @@ import com.mall.entity.UserAccount;
 import com.mall.entity.UserCoupon;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
-import com.mall.repository.AddressBookRepository;
-import com.mall.repository.AfterSaleRecordRepository;
-import com.mall.repository.CouponRepository;
-import com.mall.repository.FavoriteProductRepository;
-import com.mall.repository.MemberMessageRepository;
-import com.mall.repository.OrderRepository;
-import com.mall.repository.ProductQuestionRepository;
-import com.mall.repository.ProductRepository;
-import com.mall.repository.ProductReviewRepository;
-import com.mall.repository.UserCouponRepository;
+import com.mall.mapper.AddressBookMapper;
+import com.mall.mapper.AfterSaleRecordMapper;
+import com.mall.mapper.CouponMapper;
+import com.mall.mapper.FavoriteProductMapper;
+import com.mall.mapper.MemberMessageMapper;
+import com.mall.mapper.OrderMapper;
+import com.mall.mapper.ProductQuestionMapper;
+import com.mall.mapper.ProductMapper;
+import com.mall.mapper.ProductReviewMapper;
+import com.mall.mapper.UserCouponMapper;
 import com.mall.vo.AddressResponse;
 import com.mall.vo.AfterSaleResponse;
 import com.mall.vo.CouponResponse;
@@ -55,20 +55,20 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CustomerExperienceService {
 
-    private final AddressBookRepository addressBookRepository;
-    private final CouponRepository couponRepository;
-    private final UserCouponRepository userCouponRepository;
-    private final FavoriteProductRepository favoriteProductRepository;
-    private final ProductReviewRepository productReviewRepository;
-    private final ProductQuestionRepository productQuestionRepository;
-    private final MemberMessageRepository memberMessageRepository;
-    private final AfterSaleRecordRepository afterSaleRecordRepository;
-    private final ProductRepository productRepository;
-    private final OrderRepository orderRepository;
+    private final AddressBookMapper addressBookMapper;
+    private final CouponMapper couponMapper;
+    private final UserCouponMapper userCouponMapper;
+    private final FavoriteProductMapper favoriteProductMapper;
+    private final ProductReviewMapper productReviewMapper;
+    private final ProductQuestionMapper productQuestionMapper;
+    private final MemberMessageMapper memberMessageMapper;
+    private final AfterSaleRecordMapper afterSaleRecordMapper;
+    private final ProductMapper productMapper;
+    private final OrderMapper orderMapper;
 
     @Transactional(readOnly = true)
     public PageResponse<AddressResponse> addresses(UserAccount user, int page, int size) {
-        Page<AddressResponse> result = addressBookRepository.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId(), PageRequest.of(page, size)).map(this::toAddressResponse);
+        Page<AddressResponse> result = addressBookMapper.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId(), PageRequest.of(page, size)).map(this::toAddressResponse);
         return PageResponse.of(result);
     }
 
@@ -80,33 +80,33 @@ public class CustomerExperienceService {
         AddressBook address = new AddressBook();
         address.setUser(user);
         applyAddress(address, request);
-        return toAddressResponse(addressBookRepository.save(address));
+        return toAddressResponse(addressBookMapper.save(address));
     }
 
     @Transactional
     public AddressResponse updateAddress(UserAccount user, Long id, AddressRequest request) {
-        AddressBook address = addressBookRepository.findById(id)
+        AddressBook address = addressBookMapper.findById(id)
                 .filter(item -> item.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new BusinessException("Address not found"));
         if (Boolean.TRUE.equals(request.defaultAddress())) {
             clearDefaultAddress(user);
         }
         applyAddress(address, request);
-        return toAddressResponse(addressBookRepository.save(address));
+        return toAddressResponse(addressBookMapper.save(address));
     }
 
     @Transactional
     public void deleteAddress(UserAccount user, Long id) {
-        AddressBook address = addressBookRepository.findById(id)
+        AddressBook address = addressBookMapper.findById(id)
                 .filter(item -> item.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new BusinessException("Address not found"));
-        addressBookRepository.delete(address);
+        addressBookMapper.delete(address);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<CouponResponse> coupons(UserAccount user, int page, int size) {
-        Map<Long, UserCoupon> claimed = userCouponRepository.findByUserIdOrderByClaimedAtDesc(user.getId()).stream().collect(Collectors.toMap(item -> item.getCoupon().getId(), item -> item, (a, b) -> a));
-        Page<CouponResponse> result = couponRepository.findByActiveTrueOrderByIdDesc(PageRequest.of(page, size)).map(coupon -> {
+        Map<Long, UserCoupon> claimed = userCouponMapper.findByUserIdOrderByClaimedAtDesc(user.getId()).stream().collect(Collectors.toMap(item -> item.getCoupon().getId(), item -> item, (a, b) -> a));
+        Page<CouponResponse> result = couponMapper.findByActiveTrueOrderByIdDesc(PageRequest.of(page, size)).map(coupon -> {
             UserCoupon userCoupon = claimed.get(coupon.getId());
             return new CouponResponse(coupon.getId(), coupon.getName(), coupon.getThresholdAmount(), coupon.getDiscountAmount(), coupon.getStock(), userCoupon != null, userCoupon != null && Boolean.TRUE.equals(userCoupon.getUsed()), coupon.getValidUntil());
         });
@@ -115,67 +115,67 @@ public class CustomerExperienceService {
 
     @Transactional
     public CouponResponse claimCoupon(UserAccount user, Long couponId) {
-        if (userCouponRepository.existsByUserIdAndCouponId(user.getId(), couponId)) {
+        if (userCouponMapper.existsByUserIdAndCouponId(user.getId(), couponId)) {
             throw new BusinessException("Coupon already claimed");
         }
-        Coupon coupon = couponRepository.findById(couponId)
+        Coupon coupon = couponMapper.findById(couponId)
                 .orElseThrow(() -> new BusinessException("Coupon not found"));
         if (coupon.getValidUntil().isBefore(LocalDateTime.now())) {
             throw new BusinessException("Coupon expired");
         }
-        if (couponRepository.decreaseStock(couponId) == 0) {
+        if (couponMapper.decreaseStock(couponId) == 0) {
             throw new BusinessException("Coupon has been fully claimed");
         }
         UserCoupon userCoupon = new UserCoupon();
         userCoupon.setUser(user);
         userCoupon.setCoupon(coupon);
         userCoupon.setClaimedAt(LocalDateTime.now());
-        userCouponRepository.save(userCoupon);
-        Coupon latest = couponRepository.findById(couponId).orElseThrow();
+        userCouponMapper.save(userCoupon);
+        Coupon latest = couponMapper.findById(couponId).orElseThrow();
         return new CouponResponse(latest.getId(), latest.getName(), latest.getThresholdAmount(),
                 latest.getDiscountAmount(), latest.getStock(), true, false, latest.getValidUntil());
     }
 
     @Transactional(readOnly = true)
     public PageResponse<FavoriteResponse> favorites(UserAccount user, int page, int size) {
-        Page<FavoriteResponse> result = favoriteProductRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toFavoriteResponse);
+        Page<FavoriteResponse> result = favoriteProductMapper.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toFavoriteResponse);
         return PageResponse.of(result);
     }
 
     @Transactional
     public void favorite(UserAccount user, Long productId) {
-        if (favoriteProductRepository.existsByUserIdAndProductId(user.getId(), productId)) {
+        if (favoriteProductMapper.existsByUserIdAndProductId(user.getId(), productId)) {
             return;
         }
-        Product product = productRepository.findById(productId)
+        Product product = productMapper.findById(productId)
                 .orElseThrow(() -> new BusinessException("Product not found"));
         FavoriteProduct favorite = new FavoriteProduct();
         favorite.setUser(user);
         favorite.setProduct(product);
         favorite.setCreatedAt(LocalDateTime.now());
-        favoriteProductRepository.save(favorite);
+        favoriteProductMapper.save(favorite);
         product.setFavoriteCount((product.getFavoriteCount() == null ? 0 : product.getFavoriteCount()) + 1);
     }
 
     @Transactional
     public void unfavorite(UserAccount user, Long productId) {
-        favoriteProductRepository.findByUserIdAndProductId(user.getId(), productId).ifPresent(favorite -> {
+        favoriteProductMapper.findByUserIdAndProductId(user.getId(), productId).ifPresent(favorite -> {
             Product product = favorite.getProduct();
             product.setFavoriteCount(Math.max(0,
                     (product.getFavoriteCount() == null ? 0 : product.getFavoriteCount()) - 1));
-            favoriteProductRepository.delete(favorite);
+            favoriteProductMapper.delete(favorite);
         });
     }
 
     @Transactional(readOnly = true)
     public PageResponse<ProductReviewResponse> reviews(Long productId, int page, int size) {
-        Page<ProductReviewResponse> result = productReviewRepository.findByProductIdOrderByCreatedAtDesc(productId, PageRequest.of(page, size)).map(item -> new ProductReviewResponse(item.getId(), item.getUser().getUsername(), item.getRating(), item.getContent(), item.getCreatedAt()));
+        Page<ProductReviewResponse> result = productReviewMapper.findByProductIdOrderByCreatedAtDesc(productId, PageRequest.of(page, size)).map(item -> new ProductReviewResponse(item.getId(), item.getUser().getUsername(), item.getRating(), item.getContent(), item.getCreatedAt()));
         return PageResponse.of(result);
     }
 
     @Transactional
     public ProductReviewResponse addReview(UserAccount user, Long productId, ProductReviewRequest request) {
-        Product product = productRepository.findById(productId)
+        Product product = productMapper.findById(productId)
                 .orElseThrow(() -> new BusinessException("Product not found"));
         ProductReview review = new ProductReview();
         review.setProduct(product);
@@ -183,9 +183,9 @@ public class CustomerExperienceService {
         review.setRating(request.rating());
         review.setContent(request.content());
         review.setCreatedAt(LocalDateTime.now());
-        ProductReview saved = productReviewRepository.save(review);
+        ProductReview saved = productReviewMapper.save(review);
 
-        List<ProductReview> reviews = productReviewRepository.findByProductIdOrderByCreatedAtDesc(productId);
+        List<ProductReview> reviews = productReviewMapper.findByProductIdOrderByCreatedAtDesc(productId);
         BigDecimal average = BigDecimal.valueOf(reviews.stream().mapToInt(ProductReview::getRating).average().orElse(5.0))
                 .setScale(2, RoundingMode.HALF_UP);
         product.setRating(average);
@@ -195,20 +195,20 @@ public class CustomerExperienceService {
 
     @Transactional(readOnly = true)
     public PageResponse<ProductQuestionResponse> questions(Long productId, int page, int size) {
-        Page<ProductQuestionResponse> result = productQuestionRepository.findByProductIdOrderByCreatedAtDesc(productId, PageRequest.of(page, size)).map(item -> new ProductQuestionResponse(item.getId(), item.getUser().getUsername(), item.getQuestion(), item.getAnswer(), item.getCreatedAt()));
+        Page<ProductQuestionResponse> result = productQuestionMapper.findByProductIdOrderByCreatedAtDesc(productId, PageRequest.of(page, size)).map(item -> new ProductQuestionResponse(item.getId(), item.getUser().getUsername(), item.getQuestion(), item.getAnswer(), item.getCreatedAt()));
         return PageResponse.of(result);
     }
 
     @Transactional
     public ProductQuestionResponse askQuestion(UserAccount user, Long productId, ProductQuestionRequest request) {
-        Product product = productRepository.findById(productId)
+        Product product = productMapper.findById(productId)
                 .orElseThrow(() -> new BusinessException("Product not found"));
         ProductQuestion question = new ProductQuestion();
         question.setProduct(product);
         question.setUser(user);
         question.setQuestion(request.question());
         question.setCreatedAt(LocalDateTime.now());
-        ProductQuestion saved = productQuestionRepository.save(question);
+        ProductQuestion saved = productQuestionMapper.save(question);
         product.setQuestionCount((product.getQuestionCount() == null ? 0 : product.getQuestionCount()) + 1);
         return new ProductQuestionResponse(saved.getId(), user.getUsername(), saved.getQuestion(),
                 saved.getAnswer(), saved.getCreatedAt());
@@ -226,19 +226,19 @@ public class CustomerExperienceService {
                 level,
                 points,
                 "Points deduction, member price, birthday coupon, priority after-sale",
-                memberMessageRepository.countByUserIdAndReadFlagFalse(user.getId())
+                memberMessageMapper.countByUserIdAndReadFlagFalse(user.getId())
         );
     }
 
     @Transactional(readOnly = true)
     public PageResponse<MemberMessageResponse> messages(UserAccount user, int page, int size) {
-        Page<MemberMessageResponse> result = memberMessageRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toMessageResponse);
+        Page<MemberMessageResponse> result = memberMessageMapper.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toMessageResponse);
         return PageResponse.of(result);
     }
 
     @Transactional
     public void readMessage(UserAccount user, Long id) {
-        MemberMessage message = memberMessageRepository.findById(id)
+        MemberMessage message = memberMessageMapper.findById(id)
                 .filter(item -> item.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new BusinessException("Message not found"));
         message.setReadFlag(true);
@@ -272,17 +272,17 @@ public class CustomerExperienceService {
         record.setType(request.type());
         record.setReason(request.reason());
         record.setCreatedAt(LocalDateTime.now());
-        return toAfterSaleResponse(afterSaleRecordRepository.save(record));
+        return toAfterSaleResponse(afterSaleRecordMapper.save(record));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<AfterSaleResponse> afterSales(UserAccount user, int page, int size) {
-        Page<AfterSaleResponse> result = afterSaleRecordRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toAfterSaleResponse);
+        Page<AfterSaleResponse> result = afterSaleRecordMapper.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(page, size)).map(this::toAfterSaleResponse);
         return PageResponse.of(result);
     }
 
     private void clearDefaultAddress(UserAccount user) {
-        addressBookRepository.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId())
+        addressBookMapper.findByUserIdOrderByDefaultAddressDescIdDesc(user.getId())
                 .forEach(address -> address.setDefaultAddress(false));
     }
 
@@ -305,7 +305,7 @@ public class CustomerExperienceService {
     }
 
     private OrderEntity getUserOrder(UserAccount user, Long orderId) {
-        return orderRepository.findById(orderId)
+        return orderMapper.findById(orderId)
                 .filter(order -> order.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new BusinessException("Order not found"));
     }
