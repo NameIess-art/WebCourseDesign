@@ -10,6 +10,7 @@ import com.mall.entity.UserAccount;
 import com.mall.enums.OrderStatus;
 import com.mall.exception.BusinessException;
 import com.mall.mapper.OrderMapper;
+import com.mall.mapper.OrderItemMapper;
 import com.mall.mapper.ProductMapper;
 import com.mall.mapper.ProductSkuMapper;
 import com.mall.mapper.SeckillEventMapper;
@@ -41,6 +42,7 @@ public class SeckillService {
     private final ProductMapper productMapper;
     private final ProductSkuMapper productSkuMapper;
     private final OrderMapper orderMapper;
+    private final OrderItemMapper orderItemMapper;
     private final Map<String, Deque<Long>> requestWindows = new ConcurrentHashMap<>();
 
     @Transactional(readOnly = true)
@@ -108,7 +110,11 @@ public class SeckillService {
         item.setPrice(event.getSeckillPrice());
         order.getItems().add(item);
 
-        return toOrderResponse(orderMapper.save(order));
+        OrderEntity saved = orderMapper.save(order);
+        item.setOrder(saved);
+        orderItemMapper.insert(item);
+
+        return toOrderResponse(saved);
     }
 
     private void rateLimit(Long userId, Long eventId) {

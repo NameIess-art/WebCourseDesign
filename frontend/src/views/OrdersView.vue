@@ -39,6 +39,7 @@
               <button class="ghost-button" @click="cancel(order.id)">取消</button>
             </div>
             <div class="row-actions">
+              <button class="ghost-button" @click="viewBill(order)">查看账单</button>
               <button v-if="order.status === '已发货'" class="ghost-button" @click="receive(order.id)">确认收货</button>
               <button class="ghost-button" @click="showLogistics(order.id)">物流</button>
               <button v-if="['已支付','已发货','已完成'].includes(order.status)" class="ghost-button" @click="afterSale(order.id)">售后</button>
@@ -70,6 +71,8 @@
         <p v-if="!afterSales.content.length" class="muted">暂无售后记录。</p>
       </div>
     </section>
+    
+    <BillModal v-model:visible="showBillModal" :order="selectedOrder" />
   </section>
 </template>
 
@@ -77,6 +80,7 @@
 import { formatStatus } from '../utils/format'
 import { onMounted, reactive, ref } from 'vue'
 import Pagination from '../components/Pagination.vue'
+import BillModal from '../components/BillModal.vue'
 import {
   cancelOrder,
   createPayment,
@@ -92,6 +96,8 @@ const orders = ref({ content: [], page: 0, totalPages: 0 })
 const afterSales = ref({ content: [], page: 0, totalPages: 0 })
 const logistics = ref({})
 const loading = ref(false)
+const showBillModal = ref(false)
+const selectedOrder = ref({})
 const pageInfo = reactive({ page: 0, size: 10, totalPages: 0, first: true, last: true })
 const statusText = {
   PENDING_PAYMENT: '待支付',
@@ -110,7 +116,7 @@ async function loadOrders(page = 0) {
   try {
     const [orderRes, afterSaleRes] = await Promise.all([getOrders(page, pageInfo.size), getAfterSales()])
     const data = orderRes.data
-    orders.value = data.content || { content: [], page: 0, totalPages: 0 }
+    orders.value = data || { content: [], page: 0, totalPages: 0 }
     afterSales.value = afterSaleRes.data
     Object.assign(pageInfo, {
       page: data.page ?? 0,
@@ -162,6 +168,11 @@ async function afterSale(id) {
   if (!reason) return
   await requestAfterSale(id, { type: 'REFUND_RETURN', reason })
   await loadOrders(pageInfo.page)
+}
+
+function viewBill(order) {
+  selectedOrder.value = order
+  showBillModal.value = true
 }
 
 onMounted(() => loadOrders(0))

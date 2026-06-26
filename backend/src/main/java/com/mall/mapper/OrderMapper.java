@@ -1,130 +1,182 @@
 package com.mall.mapper;
 
-import com.mall.entity.OrderEntity;
-import com.mall.entity.OrderItem;
-import com.mall.enums.OrderStatus;
-import com.mall.mapper.support.GenericSqlMapper;
-import com.mall.mapper.support.MyBatisMapperSupport;
+import com.mall.entity.*;
+import org.apache.ibatis.annotations.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Component;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Collection;
+import java.time.*;
+import java.math.*;
+import com.mall.enums.*;
 
-@Component
-public class OrderMapper extends MyBatisMapperSupport<OrderEntity> {
+@Mapper
+public interface OrderMapper {
 
-    private final MyBatisMapperSupport<OrderItem> orderItemSupport;
+    @Select("SELECT * FROM orders WHERE id = #{id}")
+    @Results(id = "OrderEntityMap", value = {
+        @Result(property = "id", column = "id", id = true),
+        @Result(property = "orderNo", column = "order_no"),
+        @Result(property = "user", column = "user_id", one = @One(select = "com.mall.mapper.UserMapper.findById")),
+        @Result(property = "totalAmount", column = "total_amount"),
+        @Result(property = "originalAmount", column = "original_amount"),
+        @Result(property = "discountAmount", column = "discount_amount"),
+        @Result(property = "pointsUsed", column = "points_used"),
+        @Result(property = "pointsDiscountAmount", column = "points_discount_amount"),
+        @Result(property = "shippingAddress", column = "shipping_address"),
+        @Result(property = "status", column = "status"),
+        @Result(property = "createdAt", column = "created_at"),
+        @Result(property = "paidAt", column = "paid_at"),
+        @Result(property = "paymentChannel", column = "payment_channel"),
+        @Result(property = "auditStatus", column = "audit_status"),
+        @Result(property = "merchantRemark", column = "merchant_remark"),
+        @Result(property = "idempotencyKey", column = "idempotency_key"),
+        @Result(property = "merchant", column = "merchant_id", one = @One(select = "com.mall.mapper.MerchantMapper.findById")),
+        @Result(property = "items", column = "id", many = @Many(select = "com.mall.mapper.OrderItemMapper.findByOrderId"))
+    })
+    Optional<OrderEntity> findById(@Param("id") Long id);
 
-    public OrderMapper(GenericSqlMapper sqlMapper) {
-        super(sqlMapper, OrderEntity.class);
-        this.orderItemSupport = new MyBatisMapperSupport<>(sqlMapper, OrderItem.class) { };
-    }
+    @Select("SELECT * FROM orders")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findAll();
 
-    @Override
-    public Optional<OrderEntity> findById(Long id) {
-        return Optional.ofNullable(withItems(selectOne("t.id = #{params.id}", params("id", id))));
-    }
+    @Select("SELECT * FROM orders LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findAllPage(@Param("pageable") Pageable pageable);
 
-    @Override
-    public OrderEntity save(OrderEntity order) {
-        super.save(order);
-        if (order.getItems() != null && !order.getItems().isEmpty()) {
-            executeUpdate("delete from order_items where order_id = #{params.orderId}", params("orderId", order.getId()));
-            order.getItems().forEach(item -> {
-                item.setOrder(order);
-                orderItemSupport.save(item);
-            });
+    @Select("SELECT COUNT(*) FROM orders")
+    long count();
+
+    @Insert("INSERT INTO orders (order_no, user_id, total_amount, original_amount, discount_amount, points_used, points_discount_amount, shipping_address, status, created_at, paid_at, payment_channel, audit_status, merchant_remark, idempotency_key, merchant_id) VALUES (#{orderNo}, #{user.id}, #{totalAmount}, #{originalAmount}, #{discountAmount}, #{pointsUsed}, #{pointsDiscountAmount}, #{shippingAddress}, #{status}, #{createdAt}, #{paidAt}, #{paymentChannel}, #{auditStatus}, #{merchantRemark}, #{idempotencyKey}, #{merchant.id})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    int insert(OrderEntity entity);
+
+    @Update("UPDATE orders SET order_no = #{orderNo}, user_id = #{user.id}, total_amount = #{totalAmount}, original_amount = #{originalAmount}, discount_amount = #{discountAmount}, points_used = #{pointsUsed}, points_discount_amount = #{pointsDiscountAmount}, shipping_address = #{shippingAddress}, status = #{status}, created_at = #{createdAt}, paid_at = #{paidAt}, payment_channel = #{paymentChannel}, audit_status = #{auditStatus}, merchant_remark = #{merchantRemark}, idempotency_key = #{idempotencyKey}, merchant_id = #{merchant.id} WHERE id = #{id}")
+    int update(OrderEntity entity);
+
+    @Delete("DELETE FROM orders WHERE id = #{id}")
+    int deleteById(@Param("id") Long id);
+
+    default OrderEntity save(OrderEntity entity) {
+        if (entity.getId() == null) {
+            insert(entity);
+        } else {
+            update(entity);
         }
-        return withItems(order);
+        return entity;
     }
-
-    public List<OrderEntity> findByUserIdOrderByCreatedAtDesc(Long userId) {
-        return withItems(selectList("t.user_id = #{params.userId}", params("userId", userId), "t.created_at desc"));
-    }
-
-    public Page<OrderEntity> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable) {
-        return withItems(selectPage("t.user_id = #{params.userId}", params("userId", userId), "t.created_at desc", pageable));
-    }
-
-    public Page<OrderEntity> findAllByOrderByCreatedAtDesc(Pageable pageable) {
-        return withItems(selectPage(null, params(), "t.created_at desc", pageable));
-    }
-
-    public Page<OrderEntity> findByMerchantIdOrderByCreatedAtDesc(Long merchantId, Pageable pageable) {
-        return withItems(selectPage("t.merchant_id = #{params.merchantId}", params("merchantId", merchantId), "t.created_at desc", pageable));
-    }
-
-    public Page<OrderEntity> findByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable) {
-        return withItems(selectPage("t.status = #{params.status}", params("status", status.name()), "t.created_at desc", pageable));
-    }
-
-    public Page<OrderEntity> findByMerchantIdAndStatusOrderByCreatedAtDesc(Long merchantId, OrderStatus status, Pageable pageable) {
-        return withItems(selectPage("t.merchant_id = #{params.merchantId} and t.status = #{params.status}", params("merchantId", merchantId, "status", status.name()), "t.created_at desc", pageable));
-    }
-
-    public long countByStatus(OrderStatus status) {
-        return countWhere("t.status = #{params.status}", params("status", status.name()));
-    }
-
-    public long countByMerchantId(Long merchantId) {
-        return countWhere("t.merchant_id = #{params.merchantId}", params("merchantId", merchantId));
-    }
-
-    public long countByMerchantIdAndStatus(Long merchantId, OrderStatus status) {
-        return countWhere("t.merchant_id = #{params.merchantId} and t.status = #{params.status}", params("merchantId", merchantId, "status", status.name()));
-    }
-
-    public long countByStatusIn(List<OrderStatus> statuses) {
-        Map<String, Object> sqlParams = params();
-        return countWhere("t.status in " + statusIn(statuses, sqlParams), sqlParams);
-    }
-
-    public BigDecimal sumTotalAmountByStatusIn(List<OrderStatus> statuses) {
-        Map<String, Object> sqlParams = params();
-        return sumWhere("t.total_amount", "t.status in " + statusIn(statuses, sqlParams), sqlParams);
-    }
-
-    public BigDecimal sumTotalAmountByMerchantIdAndStatusIn(Long merchantId, List<OrderStatus> statuses) {
-        Map<String, Object> sqlParams = params("merchantId", merchantId);
-        return sumWhere("t.total_amount", "t.merchant_id = #{params.merchantId} and t.status in " + statusIn(statuses, sqlParams), sqlParams);
-    }
-
-    public long countPaidOrdersBetween(LocalDateTime startAt, LocalDateTime endAt) {
-        return countWhere("t.paid_at is not null and t.paid_at >= #{params.startAt} and t.paid_at < #{params.endAt}", params("startAt", startAt, "endAt", endAt));
-    }
-
-    public BigDecimal sumPaidOrderAmountBetween(LocalDateTime startAt, LocalDateTime endAt) {
-        return sumWhere("t.total_amount", "t.paid_at is not null and t.paid_at >= #{params.startAt} and t.paid_at < #{params.endAt}", params("startAt", startAt, "endAt", endAt));
-    }
-
-    private String statusIn(List<OrderStatus> statuses, Map<String, Object> sqlParams) {
-        return inClause("status", statuses.stream().map(OrderStatus::name).toList(), sqlParams);
-    }
-
-    private OrderEntity withItems(OrderEntity order) {
-        if (order != null) {
-            order.setItems(orderItems(order.getId()));
+    
+    default void saveAll(Collection<OrderEntity> entities) {
+        for (OrderEntity entity : entities) {
+            save(entity);
         }
-        return order;
     }
 
-    private List<OrderEntity> withItems(List<OrderEntity> orders) {
-        orders.forEach(this::withItems);
-        return orders;
+    default void delete(OrderEntity entity) {
+        if (entity != null && entity.getId() != null) {
+            deleteById(entity.getId());
+        }
     }
 
-    private Page<OrderEntity> withItems(Page<OrderEntity> page) {
-        List<OrderEntity> content = withItems(page.getContent());
-        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
+    default void deleteAll(Collection<OrderEntity> entities) {
+        for (OrderEntity entity : entities) {
+            delete(entity);
+        }
     }
 
-    private List<OrderItem> orderItems(Long orderId) {
-        return orderItemSupport.selectRawList(orderItemSupport.selectSql() + " where t.order_id = #{params.orderId} order by t.id asc", params("orderId", orderId));
+    default Page<OrderEntity> findAll(Pageable pageable) {
+        List<OrderEntity> content = findAllPage(pageable);
+        return new PageImpl<>(content, pageable, count());
     }
+
+    @Select("<script>SELECT * FROM orders WHERE user_id = #{userId} ORDER BY created_at desc</script>")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
+
+    @Select("<script>SELECT * FROM orders WHERE user_id = #{userId} ORDER BY created_at desc LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}</script>")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findByUserIdOrderByCreatedAtDescPage(@Param("userId") Long userId, @Param("pageable") Pageable pageable);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE user_id = #{userId}</script>")
+    long countFindByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
+
+    default Page<OrderEntity> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable) {
+        List<OrderEntity> content = findByUserIdOrderByCreatedAtDescPage(userId, pageable);
+        return new PageImpl<>(content, pageable, countFindByUserIdOrderByCreatedAtDesc(userId));
+    }
+
+    @Select("<script>SELECT * FROM orders ORDER BY created_at desc LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}</script>")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findAllByOrderByCreatedAtDescPage(@Param("pageable") Pageable pageable);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE user_id = #{userId}</script>")
+    long countFindAllByOrderByCreatedAtDesc();
+
+    default Page<OrderEntity> findAllByOrderByCreatedAtDesc(Pageable pageable) {
+        List<OrderEntity> content = findAllByOrderByCreatedAtDescPage(pageable);
+        return new PageImpl<>(content, pageable, countFindAllByOrderByCreatedAtDesc());
+    }
+
+    @Select("<script>SELECT * FROM orders WHERE merchant_id = #{merchantId} ORDER BY created_at desc LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}</script>")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findByMerchantIdOrderByCreatedAtDescPage(@Param("merchantId") Long merchantId, @Param("pageable") Pageable pageable);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE merchant_id = #{merchantId}</script>")
+    long countFindByMerchantIdOrderByCreatedAtDesc(@Param("merchantId") Long merchantId);
+
+    default Page<OrderEntity> findByMerchantIdOrderByCreatedAtDesc(Long merchantId, Pageable pageable) {
+        List<OrderEntity> content = findByMerchantIdOrderByCreatedAtDescPage(merchantId, pageable);
+        return new PageImpl<>(content, pageable, countFindByMerchantIdOrderByCreatedAtDesc(merchantId));
+    }
+
+    @Select("<script>SELECT * FROM orders WHERE status = #{status} ORDER BY created_at desc LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}</script>")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findByStatusOrderByCreatedAtDescPage(@Param("status") OrderStatus status, @Param("pageable") Pageable pageable);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE status = #{status}</script>")
+    long countFindByStatusOrderByCreatedAtDesc(@Param("status") OrderStatus status);
+
+    default Page<OrderEntity> findByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable) {
+        List<OrderEntity> content = findByStatusOrderByCreatedAtDescPage(status, pageable);
+        return new PageImpl<>(content, pageable, countFindByStatusOrderByCreatedAtDesc(status));
+    }
+
+    @Select("<script>SELECT * FROM orders WHERE merchant_id = #{merchantId} AND status = #{status} ORDER BY created_at desc LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}</script>")
+    @ResultMap("OrderEntityMap")
+    List<OrderEntity> findByMerchantIdAndStatusOrderByCreatedAtDescPage(@Param("merchantId") Long merchantId, @Param("status") OrderStatus status, @Param("pageable") Pageable pageable);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE merchant_id = #{merchantId} AND status = #{status}</script>")
+    long countFindByMerchantIdAndStatusOrderByCreatedAtDesc(@Param("merchantId") Long merchantId, @Param("status") OrderStatus status);
+
+    default Page<OrderEntity> findByMerchantIdAndStatusOrderByCreatedAtDesc(Long merchantId, OrderStatus status, Pageable pageable) {
+        List<OrderEntity> content = findByMerchantIdAndStatusOrderByCreatedAtDescPage(merchantId, status, pageable);
+        return new PageImpl<>(content, pageable, countFindByMerchantIdAndStatusOrderByCreatedAtDesc(merchantId, status));
+    }
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE status = #{status}</script>")
+    long countByStatus(@Param("status") OrderStatus status);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE merchant_id = #{merchantId}</script>")
+    long countByMerchantId(@Param("merchantId") Long merchantId);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE merchant_id = #{merchantId} AND status = #{status}</script>")
+    long countByMerchantIdAndStatus(@Param("merchantId") Long merchantId, @Param("status") OrderStatus status);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE status IN <foreach collection='statuses' item='status' open='(' separator=',' close=')'>#{status}</foreach></script>")
+    long countByStatusIn(@Param("statuses") List<OrderStatus> statuses);
+
+    @Select("<script>SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status IN <foreach collection='statuses' item='status' open='(' separator=',' close=')'>#{status}</foreach></script>")
+    BigDecimal sumTotalAmountByStatusIn(@Param("statuses") List<OrderStatus> statuses);
+
+    @Select("<script>SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE merchant_id = #{merchantId} AND status IN <foreach collection='statuses' item='status' open='(' separator=',' close=')'>#{status}</foreach></script>")
+    BigDecimal sumTotalAmountByMerchantIdAndStatusIn(@Param("merchantId") Long merchantId, @Param("statuses") List<OrderStatus> statuses);
+
+    @Select("<script>SELECT COUNT(*) FROM orders WHERE paid_at &gt;= #{startAt} AND paid_at &lt;= #{endAt}</script>")
+    long countPaidOrdersBetween(@Param("startAt") LocalDateTime startAt, @Param("endAt") LocalDateTime endAt);
+
+    @Select("<script>SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE paid_at &gt;= #{startAt} AND paid_at &lt;= #{endAt}</script>")
+    BigDecimal sumPaidOrderAmountBetween(@Param("startAt") LocalDateTime startAt, @Param("endAt") LocalDateTime endAt);
+
 }

@@ -19,7 +19,7 @@
 </head>
 <body>
     <div class="header">
-        <h2>欢迎, <%= session.getAttribute("loggedUser") %> | <a href="logout.jsp">退出</a></h2>
+        <h2>欢迎, <%= session.getAttribute("loggedUser") %> | <a href="orders.jsp">我的账单</a> | <a href="logout.jsp">退出</a></h2>
     </div>
     
     <h3>商品列表</h3>

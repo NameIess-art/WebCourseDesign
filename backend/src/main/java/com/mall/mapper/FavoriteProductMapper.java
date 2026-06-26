@@ -1,35 +1,107 @@
 package com.mall.mapper;
 
-import com.mall.entity.FavoriteProduct;
-import com.mall.mapper.support.GenericSqlMapper;
-import com.mall.mapper.support.MyBatisMapperSupport;
+import com.mall.entity.*;
+import org.apache.ibatis.annotations.*;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
+import java.time.*;
+import java.math.*;
+import com.mall.enums.*;
 
-@Component
-public class FavoriteProductMapper extends MyBatisMapperSupport<FavoriteProduct> {
+@Mapper
+public interface FavoriteProductMapper {
 
-    public FavoriteProductMapper(GenericSqlMapper sqlMapper) {
-        super(sqlMapper, FavoriteProduct.class);
+    @Select("SELECT * FROM favorite_products WHERE id = #{id}")
+    @Results(id = "FavoriteProductMap", value = {
+        @Result(property = "id", column = "id", id = true),
+        @Result(property = "user", column = "user_id", one = @One(select = "com.mall.mapper.UserMapper.findById")),
+        @Result(property = "product", column = "product_id", one = @One(select = "com.mall.mapper.ProductMapper.findById")),
+        @Result(property = "createdAt", column = "created_at")
+    })
+    Optional<FavoriteProduct> findById(@Param("id") Long id);
+
+    @Select("SELECT * FROM favorite_products")
+    @ResultMap("FavoriteProductMap")
+    List<FavoriteProduct> findAll();
+
+    @Select("SELECT * FROM favorite_products LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}")
+    @ResultMap("FavoriteProductMap")
+    List<FavoriteProduct> findAllPage(@Param("pageable") Pageable pageable);
+
+    @Select("SELECT COUNT(*) FROM favorite_products")
+    long count();
+
+    @Insert("INSERT INTO favorite_products (user_id, product_id, created_at) VALUES (#{user.id}, #{product.id}, #{createdAt})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    int insert(FavoriteProduct entity);
+
+    @Update("UPDATE favorite_products SET user_id = #{user.id}, product_id = #{product.id}, created_at = #{createdAt} WHERE id = #{id}")
+    int update(FavoriteProduct entity);
+
+    @Delete("DELETE FROM favorite_products WHERE id = #{id}")
+    int deleteById(@Param("id") Long id);
+
+    default FavoriteProduct save(FavoriteProduct entity) {
+        if (entity.getId() == null) {
+            insert(entity);
+        } else {
+            update(entity);
+        }
+        return entity;
+    }
+    
+    default void saveAll(Collection<FavoriteProduct> entities) {
+        for (FavoriteProduct entity : entities) {
+            save(entity);
+        }
     }
 
-    public boolean existsByUserIdAndProductId(Long userId, Long productId) {
-        return countWhere("t.user_id = #{params.userId} and t.product_id = #{params.productId}", params("userId", userId, "productId", productId)) > 0;
+    default void delete(FavoriteProduct entity) {
+        if (entity != null && entity.getId() != null) {
+            deleteById(entity.getId());
+        }
     }
 
-    public Optional<FavoriteProduct> findByUserIdAndProductId(Long userId, Long productId) {
-        return Optional.ofNullable(selectOne("t.user_id = #{params.userId} and t.product_id = #{params.productId}", params("userId", userId, "productId", productId)));
+    default void deleteAll(Collection<FavoriteProduct> entities) {
+        for (FavoriteProduct entity : entities) {
+            delete(entity);
+        }
     }
 
-    public List<FavoriteProduct> findByUserIdOrderByCreatedAtDesc(Long userId) {
-        return selectList("t.user_id = #{params.userId}", params("userId", userId), "t.created_at desc");
+    default Page<FavoriteProduct> findAll(Pageable pageable) {
+        List<FavoriteProduct> content = findAllPage(pageable);
+        return new PageImpl<>(content, pageable, count());
     }
 
-    public Page<FavoriteProduct> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable) {
-        return selectPage("t.user_id = #{params.userId}", params("userId", userId), "t.created_at desc", pageable);
+    @Select("<script>SELECT COUNT(*) FROM favorite_products WHERE user_id = #{userId} AND product_id = #{productId}</script>")
+    long countForExistsByUserIdAndProductId(@Param("userId") Long userId, @Param("productId") Long productId);
+
+    default boolean existsByUserIdAndProductId(Long userId, Long productId) {
+        return countForExistsByUserIdAndProductId(userId, productId) > 0;
     }
+
+    @Select("<script>SELECT * FROM favorite_products</script>")
+    @ResultMap("FavoriteProductMap")
+    Optional<FavoriteProduct> findByUserIdAndProductId(@Param("userId") Long userId, @Param("productId") Long productId);
+
+    @Select("<script>SELECT * FROM favorite_products WHERE user_id = #{userId} ORDER BY created_at desc</script>")
+    @ResultMap("FavoriteProductMap")
+    List<FavoriteProduct> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
+
+    @Select("<script>SELECT * FROM favorite_products WHERE user_id = #{userId} ORDER BY created_at desc LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}</script>")
+    @ResultMap("FavoriteProductMap")
+    List<FavoriteProduct> findByUserIdOrderByCreatedAtDescPage(@Param("userId") Long userId, @Param("pageable") Pageable pageable);
+
+    @Select("<script>SELECT COUNT(*) FROM favorite_products WHERE user_id = #{userId}</script>")
+    long countFindByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
+
+    default Page<FavoriteProduct> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable) {
+        List<FavoriteProduct> content = findByUserIdOrderByCreatedAtDescPage(userId, pageable);
+        return new PageImpl<>(content, pageable, countFindByUserIdOrderByCreatedAtDesc(userId));
+    }
+
 }

@@ -5,105 +5,64 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0b18efa8-6bdf-4502-964e-d3a16a952c97" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/backend/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/backend/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/config/DataInitializer.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/config/DataInitializer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/controller/AdminController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/controller/AdminController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/controller/AuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/controller/AuthController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/controller/MallController.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/controller/MallController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/CartItemRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/CartItemRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/CheckoutRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/CheckoutRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/LoginRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/LoginRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/ProductRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/ProductRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/RegisterRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/dto/RegisterRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/AddressBook.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/AddressBook.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/AfterSaleRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/AfterSaleRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Announcement.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Announcement.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/CartItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/CartItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Category.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Category.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ContentAuditItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ContentAuditItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Coupon.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Coupon.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/DictionaryItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/DictionaryItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/FavoriteProduct.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/FavoriteProduct.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/IdempotentRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/IdempotentRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MarketingActivity.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MarketingActivity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MarketingFlowRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MarketingFlowRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MemberMessage.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MemberMessage.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Merchant.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Merchant.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MerchantPenalty.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/MerchantPenalty.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderAuditRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderAuditRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderEntity.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderEntity.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderModifyRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/OrderModifyRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PaymentRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PaymentRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PermissionItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PermissionItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PlatformRiskItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PlatformRiskItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PointRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PointRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Product.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/Product.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductDetailBlock.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductDetailBlock.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductQuestion.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductQuestion.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductReview.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductReview.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductSku.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ProductSku.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PromotionRule.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/PromotionRule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ReconciliationRecord.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/ReconciliationRecord.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/RoleDefinition.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/RoleDefinition.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/SeckillEvent.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/SeckillEvent.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/SystemConfigItem.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/SystemConfigItem.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/UserAccount.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/UserAccount.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/UserCoupon.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/entity/UserCoupon.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/AddressBookRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/AfterSaleRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/AnnouncementRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/CartItemRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/CategoryRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/ContentAuditItemRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/CouponRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/DictionaryItemRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/FavoriteProductRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/IdempotentRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/MarketingActivityRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/MarketingFlowRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/MemberMessageRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/MerchantPenaltyRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/MerchantRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/OrderAuditRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/OrderModifyRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/OrderRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/PaymentRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/PermissionItemRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/PlatformRiskItemRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/PointRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/ProductDetailBlockRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/ProductQuestionRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/ProductRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/ProductReviewRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/ProductSkuRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/PromotionRuleRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/ReconciliationRecordRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/RoleDefinitionRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/SeckillEventRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/SystemConfigItemRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/UserCouponRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/repository/UserRepository.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/security/JwtAuthenticationFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/security/JwtAuthenticationFilter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/AddressBookMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/AddressBookMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/AfterSaleRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/AfterSaleRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/AnnouncementMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/AnnouncementMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/CartItemMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/CartItemMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/CategoryMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/CategoryMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ContentAuditItemMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ContentAuditItemMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/CouponMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/CouponMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/DictionaryItemMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/DictionaryItemMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/FavoriteProductMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/FavoriteProductMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/IdempotentRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/IdempotentRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MarketingActivityMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MarketingActivityMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MarketingFlowRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MarketingFlowRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MemberMessageMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MemberMessageMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MerchantMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MerchantMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MerchantPenaltyMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/MerchantPenaltyMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/OrderAuditRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/OrderAuditRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/OrderMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/OrderMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/OrderModifyRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/OrderModifyRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PaymentRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PaymentRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PermissionItemMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PermissionItemMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PlatformRiskItemMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PlatformRiskItemMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PointRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PointRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductDetailBlockMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductDetailBlockMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductQuestionMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductQuestionMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductReviewMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductReviewMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductSkuMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ProductSkuMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PromotionRuleMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/PromotionRuleMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ReconciliationRecordMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/ReconciliationRecordMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/RoleDefinitionMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/RoleDefinitionMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/SeckillEventMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/SeckillEventMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/SystemConfigItemMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/SystemConfigItemMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/UserCouponMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/UserCouponMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/UserMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/UserMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/support/GenericSqlMapper.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/support/GenericSqlProvider.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/mapper/support/MyBatisMapperSupport.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/AdminService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/AdminService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/AuthService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/AuthService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/CustomerExperienceService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/CustomerExperienceService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/MallService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/MallService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/OperationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/OperationService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/PaymentService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/PaymentService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/SeckillService.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/java/com/mall/service/SeckillService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/test/java/com/mall/service/MallServiceIntegrationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/test/java/com/mall/service/MallServiceIntegrationTest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/admin.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/admin.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/http.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/http.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/api/mall.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/api/mall.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/styles/main.css" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/styles/main.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/utils/format.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/utils/format.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/views/CartView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/CartView.vue" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/views/LoginView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/LoginView.vue" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/views/MerchantView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/MerchantView.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/views/ProductView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/ProductView.vue" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/views/RegisterView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/RegisterView.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/views/OrdersView.vue" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/views/OrdersView.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/src/main/webapp/buy.jsp" beforeDir="false" afterPath="$PROJECT_DIR$/mv-demo/src/main/webapp/buy.jsp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/src/main/webapp/index.jsp" beforeDir="false" afterPath="$PROJECT_DIR$/mv-demo/src/main/webapp/index.jsp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/src/main/webapp/mall.jsp" beforeDir="false" afterPath="$PROJECT_DIR$/mv-demo/src/main/webapp/mall.jsp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/buy_jsp.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/buy_jsp.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/index_jsp.class" beforeDir="false" afterPath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/index_jsp.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/index_jsp.java" beforeDir="false" afterPath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/index_jsp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/login_jsp.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/login_jsp.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/logout_jsp.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/logout_jsp.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/mall_jsp.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mv-demo/target/tmp/jsp/org/apache/jsp/mall_jsp.java" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -164,6 +123,8 @@
       <workItem from="1782349025668" duration="299000" />
       <workItem from="1782350607438" duration="6174000" />
       <workItem from="1782357995322" duration="8703000" />
+      <workItem from="1782373904351" duration="9920000" />
+      <workItem from="1782436198039" duration="2523000" />
     </task>
     <servers />
   </component>

@@ -18,6 +18,7 @@ import com.mall.mapper.CartItemMapper;
 import com.mall.mapper.CategoryMapper;
 import com.mall.mapper.IdempotentRecordMapper;
 import com.mall.mapper.OrderMapper;
+import com.mall.mapper.OrderItemMapper;
 import com.mall.mapper.PointRecordMapper;
 import com.mall.mapper.ProductDetailBlockMapper;
 import com.mall.mapper.ProductMapper;
@@ -66,6 +67,7 @@ public class MallService {
     private final PointRecordMapper pointRecordMapper;
     private final IdempotentRecordMapper idempotentRecordMapper;
     private final UserMapper userMapper;
+    private final OrderItemMapper orderItemMapper;
 
     @Transactional(readOnly = true)
     public PageResponse<CategoryResponse> categories(int page, int size) {
@@ -158,19 +160,31 @@ public class MallService {
         return toProductResponse(product, true);
     }
 
+    /**
+     * 添加商品到购物车
+     * 处理用户将商品加入购物车的逻辑，校验商品状态和库存，并更新购物车数量
+     * @param user 当前登录用户
+     * @param request 包含商品ID、SKU ID以及数量的请求
+     */
     @Transactional
     public void addToCart(UserAccount user, CartItemRequest request) {
+        // 根据传入的商品 ID 获取商品实体对象
         Product product = getProduct(request.productId());
+        // 校验商品是否处于上架有效状态
         if (!Boolean.TRUE.equals(product.getActive())) {
             throw new BusinessException("Product is unavailable");
         }
+        // 解析出用户所选择的具体规格 (SKU)
         ProductSku sku = resolveSku(product, request.skuId());
+        // 校验当前所选规格的库存是否满足加入购物车的数量
         if (sku.getStock() < request.quantity()) {
             throw new BusinessException("Insufficient SKU stock");
         }
 
+        // 查询购物车中是否已经存在相同的商品及规格
         CartItem cartItem = cartItemMapper.findByUserIdAndProductIdAndSkuId(
                 user.getId(), product.getId(), sku.getId()).orElseGet(() -> {
+            // 若不存在，则初始化一条新的购物车记录
             CartItem item = new CartItem();
             item.setUser(user);
             item.setProduct(product);
@@ -179,10 +193,13 @@ public class MallService {
             return item;
         });
 
+        // 计算叠加后的购物车目标数量
         int targetQuantity = cartItem.getQuantity() + request.quantity();
+        // 再次校验叠加后的总数是否超出库存
         if (targetQuantity > sku.getStock()) {
             throw new BusinessException("Cart quantity exceeds SKU stock");
         }
+        // 更新购物车商品数量并保存到数据库
         cartItem.setQuantity(targetQuantity);
         cartItemMapper.save(cartItem);
     }
@@ -241,10 +258,19 @@ public class MallService {
         cartItemMapper.delete(cartItem);
     }
 
+    /**
+     * 购物车结账与订单生成
+     * 将用户购物车中的所有商品结算，扣减库存，应用优惠并生成对应的订单
+     * @param user 当前登录用户
+     * @param request 结账请求对象，包含收货地址、优惠券、使用积分等信息
+     * @return 订单生成结果响应
+     */
     @Transactional
     public OrderResponse checkout(UserAccount user, CheckoutRequest request) {
+        // 利用幂等键防止网络延迟或重试导致的重复下单
         if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()
                 && idempotentRecordMapper.existsByIdemKey(request.idempotencyKey())) {
+            // 如果幂等记录已存在，直接返回之前已创建的对应订单，避免重复生成
             return orderMapper.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
                     .filter(order -> request.idempotencyKey().equals(order.getIdempotencyKey()))
                     .findFirst()
@@ -252,29 +278,35 @@ public class MallService {
                     .orElseThrow(() -> new BusinessException("Duplicate checkout request"));
         }
 
+        // 从数据库中获取用户当前购物车的所有商品条目
         List<CartItem> cartItems = cartItemMapper.findByUserId(user.getId());
         if (cartItems.isEmpty()) {
             throw new BusinessException("Cart is empty");
         }
 
+        // 初始化主订单实体，并生成唯一的业务订单号
         OrderEntity order = new OrderEntity();
         order.setOrderNo("MALL" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase());
         order.setUser(user);
         order.setShippingAddress(request.shippingAddress());
-        order.setStatus(OrderStatus.PENDING_PAYMENT);
+        order.setStatus(OrderStatus.PENDING_PAYMENT); // 初始状态设为待付款
         order.setCreatedAt(LocalDateTime.now());
         order.setTotalAmount(BigDecimal.ZERO);
         order.setIdempotencyKey(request.idempotencyKey());
 
         BigDecimal total = BigDecimal.ZERO;
+        // 遍历购物车内的每一项商品，构建订单的明细行并扣减库存
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
             ProductSku sku = cartItem.getSku() == null ? resolveSku(product, null) : cartItem.getSku();
+            
+            // 尝试在数据库层面通过乐观锁原子递减库存，确保并发场景下不会超卖
             if (productSkuMapper.decreaseStock(sku.getId(), cartItem.getQuantity()) == 0
                     || productMapper.decreaseStock(product.getId(), cartItem.getQuantity()) == 0) {
                 throw new BusinessException(product.getName() + " is out of stock");
             }
 
+            // 初始化具体的订单明细(订单子项)，关联商品及购买的数量和单价
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setProduct(product);
@@ -283,10 +315,14 @@ public class MallService {
             orderItem.setPrice(sku.getPrice());
             order.getItems().add(orderItem);
 
+            // 累加计算订单的商品总金额
             total = total.add(sku.getPrice().multiply(BigDecimal.valueOf(cartItem.getQuantity())));
         }
 
+        // 计算优惠券所抵扣的折扣金额
         BigDecimal discount = couponDiscount(user, request.couponId(), total);
+        
+        // 校验并计算会员积分所抵扣的金额
         int pointsUsed = request.pointsUsed() == null ? 0 : Math.max(0, request.pointsUsed());
         int availablePoints = user.getPoints() == null ? 0 : user.getPoints();
         if (pointsUsed > availablePoints) {
@@ -298,18 +334,30 @@ public class MallService {
         if (pointsDiscount.compareTo(maxPointsDiscount) > 0) {
             pointsDiscount = maxPointsDiscount;
         }
+        
+        // 如果使用了积分，则扣除用户余额并生成对应的积分变动流水
         if (pointsUsed > 0) {
             user.setPoints(availablePoints - pointsUsed);
             pointRecordMapper.save(pointRecord(user, -pointsUsed, "USE", "Order points deduction"));
         }
 
+        // 回填各类计算好的金额到主订单实体
         order.setOriginalAmount(total);
         order.setDiscountAmount(discount);
         order.setPointsUsed(pointsUsed);
         order.setPointsDiscountAmount(pointsDiscount);
         order.setTotalAmount(total.subtract(discount).subtract(pointsDiscount).max(BigDecimal.ZERO));
+        
+        // 持久化保存主订单数据
         OrderEntity saved = orderMapper.save(order);
+        
+        // 级联保存所有订单明细项
+        for (OrderItem item : order.getItems()) {
+            item.setOrder(saved);
+            orderItemMapper.insert(item);
+        }
 
+        // 保存本次操作的幂等记录
         if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
             IdempotentRecord record = new IdempotentRecord();
             record.setIdemKey(request.idempotencyKey());
@@ -319,6 +367,7 @@ public class MallService {
             idempotentRecordMapper.save(record);
         }
 
+        // 订单生成成功后，清空用户当前的购物车数据
         cartItemMapper.deleteByUserId(user.getId());
         return toOrderResponse(saved);
     }

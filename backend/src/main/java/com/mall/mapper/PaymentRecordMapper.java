@@ -1,31 +1,95 @@
 package com.mall.mapper;
 
-import com.mall.entity.PaymentRecord;
-import com.mall.mapper.support.GenericSqlMapper;
-import com.mall.mapper.support.MyBatisMapperSupport;
-import org.springframework.stereotype.Component;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import com.mall.entity.*;
+import org.apache.ibatis.annotations.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
+import java.time.*;
+import java.math.*;
+import com.mall.enums.*;
 
-@Component
-public class PaymentRecordMapper extends MyBatisMapperSupport<PaymentRecord> {
+@Mapper
+public interface PaymentRecordMapper {
 
-    public PaymentRecordMapper(GenericSqlMapper sqlMapper) {
-        super(sqlMapper, PaymentRecord.class);
+    @Select("SELECT * FROM payment_records WHERE id = #{id}")
+    @Results(id = "PaymentRecordMap", value = {
+        @Result(property = "id", column = "id", id = true),
+        @Result(property = "paymentNo", column = "payment_no"),
+        @Result(property = "order", column = "order_id", one = @One(select = "com.mall.mapper.OrderMapper.findById")),
+        @Result(property = "channel", column = "channel"),
+        @Result(property = "amount", column = "amount"),
+        @Result(property = "status", column = "status"),
+        @Result(property = "createdAt", column = "created_at"),
+        @Result(property = "paidAt", column = "paid_at")
+    })
+    Optional<PaymentRecord> findById(@Param("id") Long id);
+
+    @Select("SELECT * FROM payment_records")
+    @ResultMap("PaymentRecordMap")
+    List<PaymentRecord> findAll();
+
+    @Select("SELECT * FROM payment_records LIMIT #{pageable.pageSize} OFFSET #{pageable.offset}")
+    @ResultMap("PaymentRecordMap")
+    List<PaymentRecord> findAllPage(@Param("pageable") Pageable pageable);
+
+    @Select("SELECT COUNT(*) FROM payment_records")
+    long count();
+
+    @Insert("INSERT INTO payment_records (payment_no, order_id, channel, amount, status, created_at, paid_at) VALUES (#{paymentNo}, #{order.id}, #{channel}, #{amount}, #{status}, #{createdAt}, #{paidAt})")
+    @Options(useGeneratedKeys = true, keyProperty = "id")
+    int insert(PaymentRecord entity);
+
+    @Update("UPDATE payment_records SET payment_no = #{paymentNo}, order_id = #{order.id}, channel = #{channel}, amount = #{amount}, status = #{status}, created_at = #{createdAt}, paid_at = #{paidAt} WHERE id = #{id}")
+    int update(PaymentRecord entity);
+
+    @Delete("DELETE FROM payment_records WHERE id = #{id}")
+    int deleteById(@Param("id") Long id);
+
+    default PaymentRecord save(PaymentRecord entity) {
+        if (entity.getId() == null) {
+            insert(entity);
+        } else {
+            update(entity);
+        }
+        return entity;
+    }
+    
+    default void saveAll(Collection<PaymentRecord> entities) {
+        for (PaymentRecord entity : entities) {
+            save(entity);
+        }
     }
 
-    public Optional<PaymentRecord> findByPaymentNo(String paymentNo) {
-        return Optional.ofNullable(selectOne("t.payment_no = #{params.paymentNo}", params("paymentNo", paymentNo)));
+    default void delete(PaymentRecord entity) {
+        if (entity != null && entity.getId() != null) {
+            deleteById(entity.getId());
+        }
     }
 
-    public List<PaymentRecord> findByOrderIdOrderByCreatedAtDesc(Long orderId) {
-        return selectList("t.order_id = #{params.orderId}", params("orderId", orderId), "t.created_at desc");
+    default void deleteAll(Collection<PaymentRecord> entities) {
+        for (PaymentRecord entity : entities) {
+            delete(entity);
+        }
     }
 
-    public BigDecimal sumPaidAmountBetween(LocalDateTime startAt, LocalDateTime endAt) {
-        return sumWhere("t.amount", "t.status = 'PAID' and t.paid_at is not null and t.paid_at >= #{params.startAt} and t.paid_at < #{params.endAt}", params("startAt", startAt, "endAt", endAt));
+    default Page<PaymentRecord> findAll(Pageable pageable) {
+        List<PaymentRecord> content = findAllPage(pageable);
+        return new PageImpl<>(content, pageable, count());
     }
+
+    @Select("<script>SELECT * FROM payment_records</script>")
+    @ResultMap("PaymentRecordMap")
+    Optional<PaymentRecord> findByPaymentNo(@Param("paymentNo") String paymentNo);
+
+    @Select("<script>SELECT * FROM payment_records WHERE order_id = #{orderId} ORDER BY created_at desc</script>")
+    @ResultMap("PaymentRecordMap")
+    List<PaymentRecord> findByOrderIdOrderByCreatedAtDesc(@Param("orderId") Long orderId);
+
+    @Select("<script>SELECT COALESCE(SUM(amount), 0) FROM payment_records WHERE amount</script>")
+    BigDecimal sumPaidAmountBetween(@Param("startAt") LocalDateTime startAt, @Param("endAt") LocalDateTime endAt);
+
 }

@@ -129,16 +129,33 @@ public class AdminService {
         )));
     }
 
+    /**
+     * 创建商品 (商家发布商品)
+     * 接收前端传递的商品信息，校验分类，并级联保存 SKU 和详情图文区块
+     * @param request 商品创建请求，包含基本信息、SKU列表和详情列表
+     * @return 创建完成的商品详情
+     */
     @Transactional
     public ProductResponse createProduct(ProductRequest request) {
+        // 获取当前操作商家的 ID，确保是合法的商家操作
         Long merchantId = requireMerchantId();
+        // 校验关联的商品分类是否存在
         Category category = categoryMapper.findById(request.categoryId())
                 .orElseThrow(() -> new BusinessException("Category not found"));
+        // 初始化商品实体对象
         Product product = new Product();
         product.setMerchant(merchantMapper.findById(merchantId).orElseThrow());
+        
+        // 将请求参数赋值给商品实体，包括价格、库存、主图等基本属性
         updateFields(product, request, category);
+        
+        // 持久化保存商品基本信息
         Product saved = productMapper.save(product);
+        
+        // 级联处理商品子属性：清理并重新保存关联的所有的 SKU(库存量单位) 和商品详情区块图文
         syncProductChildren(saved, request);
+        
+        // 转换为响应对象返回给前端
         return toProductResponse(saved);
     }
 

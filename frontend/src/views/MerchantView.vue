@@ -285,7 +285,7 @@ async function runAction(successText, action) {
 async function loadProducts(page = productPage.page) {
   const productRes = await getAdminProducts(page, productPage.size)
   const data = productRes.data || {}
-  products.value = data.content || { content: [], page: 0, totalPages: 0 }
+  products.value = data || { content: [], page: 0, totalPages: 0 }
   Object.assign(productPage, {
     page: data.page ?? 0,
     size: data.size ?? productPage.size,
@@ -331,7 +331,7 @@ async function loadData() {
     await loadProducts(productPage.page)
 
     dashboard.value = dashboardRes.data || {}
-    orders.value = orderRes.data?.content || []
+    orders.value = orderRes.data || { content: [], page: 0, totalPages: 0 }
     afterSales.value = afterSaleRes.data || { content: [], page: 0, totalPages: 0 }
     marketing.value = marketingRes.data || { content: [], page: 0, totalPages: 0 }
     marketingFlows.value = flowRes.data || { content: [], page: 0, totalPages: 0 }

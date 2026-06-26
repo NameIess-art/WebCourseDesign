@@ -8,6 +8,7 @@
         Statement stmt = conn.createStatement();
         stmt.execute("CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY AUTO_INCREMENT, username VARCHAR(50), password VARCHAR(50))");
         stmt.execute("CREATE TABLE IF NOT EXISTS products (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(50), price DECIMAL(10,2), stock INT)");
+        stmt.execute("CREATE TABLE IF NOT EXISTS orders (id INT PRIMARY KEY AUTO_INCREMENT, username VARCHAR(50), product_name VARCHAR(50), price DECIMAL(10,2), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         
         ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users");
         rs.next();
@@ -28,8 +29,9 @@
     <h2>用户登录 (JSP直接连数据库)</h2>
     <form action="login.jsp" method="post">
         用户名: <input type="text" name="username" value="admin"><br><br>
-        密 码: &nbsp;<input type="password" name="password" value="123456"><br><br>
+        密码： &nbsp;<input type="password" name="password" value="123456"><br><br>
         <input type="submit" value="登录">
+        &nbsp;&nbsp;<a href="register_view.jsp">注册新账号</a>
     </form>
 </body>
 </html>
